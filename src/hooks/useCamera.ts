@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, type RefObject } from 'react';
 import { CameraService } from '@/services/camera.service';
-import type { CameraSettings, CameraDevice, CameraCapabilities, BeautySettings, FilterSettings } from '@/types';
+import type { CameraSettings, CameraDevice, CameraCapabilities, BeautySettings, FilterSettings, DetectedFace } from '@/types';
 
 export type CameraState =
   | 'idle'
@@ -19,7 +19,7 @@ export interface UseCameraReturn {
   isSecureContext: boolean;
   startCamera: (settings: CameraSettings) => Promise<void>;
   stopCamera: () => Promise<void>;
-  captureFrame: (mirror: boolean, beauty?: BeautySettings, filterSettings?: FilterSettings) => HTMLCanvasElement | null;
+  captureFrame: (mirror: boolean, beauty?: BeautySettings, filterSettings?: FilterSettings, faces?: DetectedFace | DetectedFace[]) => HTMLCanvasElement | null;
   switchCamera: (deviceId: string) => Promise<void>;
   refreshDevices: () => Promise<void>;
 }
@@ -80,10 +80,15 @@ export function useCamera(): UseCameraReturn {
     setState('stopped');
   }, []);
 
-  const captureFrame = useCallback((mirror: boolean, beauty?: BeautySettings, filterSettings?: FilterSettings): HTMLCanvasElement | null => {
+  const captureFrame = useCallback((
+    mirror: boolean,
+    beauty?: BeautySettings,
+    filterSettings?: FilterSettings,
+    faces?: DetectedFace | DetectedFace[]
+  ): HTMLCanvasElement | null => {
     const video = videoRef.current;
     if (!video || state !== 'active') return null;
-    return CameraService.captureFrame(video, mirror, undefined, undefined, beauty, filterSettings);
+    return CameraService.captureFrame(video, mirror, undefined, undefined, beauty, filterSettings, faces);
   }, [state]);
 
   const switchCamera = useCallback(async (deviceId: string) => {

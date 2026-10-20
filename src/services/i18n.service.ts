@@ -66,8 +66,22 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'camera.filterPastel': 'Hồng phấn',
     'camera.filterCinematic': 'Điện ảnh',
     'camera.filterKorean': 'Hàn Quốc',
-    'camera.filterHighcontrast': 'Tương phản cao',
     'camera.beautyActive': 'Đang bật làm đẹp',
+
+    // AR Filters & Face Tracking
+    'camera.arFilters': 'Bộ lọc AR & Phụ kiện',
+    'camera.faceTracking': 'Tracking khuôn mặt (Làm mịn & AR)',
+    'camera.trackingActive': 'Đang nhận diện mặt',
+    'camera.faceTrackingDesc': 'Tự động nhận diện khuôn mặt để làm mịn chuẩn xác và gắn phụ kiện AR chuyển động theo khuôn mặt',
+    'camera.arBunny': 'Tai thỏ',
+    'camera.arCat': 'Mèo con',
+    'camera.arGlasses': 'Kính tim',
+    'camera.arCrown': 'Vương miện',
+    'camera.arSparkles': 'Lấp lánh',
+    'camera.arBlushHearts': 'Má tim',
+    'camera.arDog': 'Cún con',
+    'camera.arFlower': 'Hoa anh đào',
+    'camera.arAngel': 'Thiên thần',
 
     // Capture Controls Sidebar
     'controls.mode': 'Chế độ chụp',
@@ -257,8 +271,22 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'camera.filterPastel': 'Pastel',
     'camera.filterCinematic': 'Cinematic',
     'camera.filterKorean': 'Korean Glow',
-    'camera.filterHighcontrast': 'High Contrast',
     'camera.beautyActive': 'Beauty Active',
+
+    // AR Filters & Face Tracking
+    'camera.arFilters': 'AR Filters & Props',
+    'camera.faceTracking': 'Face Tracking (Smooth & AR)',
+    'camera.trackingActive': 'Face tracking active',
+    'camera.faceTrackingDesc': 'Automatically tracks face for localized skin smoothing and animated AR props',
+    'camera.arBunny': 'Bunny Ears',
+    'camera.arCat': 'Kitty Cat',
+    'camera.arGlasses': 'Heart Shades',
+    'camera.arCrown': 'Princess Tiara',
+    'camera.arSparkles': 'Idol Sparkles',
+    'camera.arBlushHearts': 'Heart Blush',
+    'camera.arDog': 'Puppy Dog',
+    'camera.arFlower': 'Sakura Flower',
+    'camera.arAngel': 'Angel Halo',
 
     // Capture Controls Sidebar
     'controls.mode': 'Mode',

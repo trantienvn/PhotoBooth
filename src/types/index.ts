@@ -74,6 +74,49 @@ export const defaultFilterSettings: FilterSettings = {
   sharpness: 0,
 };
 
+// --- Face Tracking & AR Filters ---
+export type ArFilterId =
+  | 'none'
+  | 'bunny'
+  | 'cat'
+  | 'heart_glasses'
+  | 'crown'
+  | 'sparkles'
+  | 'blush_hearts'
+  | 'dog'
+  | 'flower'
+  | 'angel';
+
+export interface ArFilterInfo {
+  id: ArFilterId;
+  name: string;
+  icon: string;
+  description: string;
+}
+
+export interface Point2D {
+  x: number;
+  y: number;
+}
+
+export interface DetectedFace {
+  id?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  leftEye: Point2D;
+  rightEye: Point2D;
+  nose: Point2D;
+  mouth: Point2D;
+  leftCheek: Point2D;
+  rightCheek: Point2D;
+  forehead: Point2D;
+  chin: Point2D;
+  roll: number;
+  confidence: number;
+}
+
 // --- Live Beauty & Retouch Settings ---
 export interface BeautySettings {
   enabled: boolean;
@@ -83,6 +126,8 @@ export interface BeautySettings {
   contrast: number;     // -50 to 50 (độ tương phản)
   warmth: number;       // -50 to 50 (tông da ấm / lạnh)
   presetId?: 'off' | 'natural' | 'rosy' | 'porcelain' | 'korean';
+  faceTracking?: boolean; // Tự động nhận diện khuôn mặt để làm mịn cục bộ & gắn AR
+  arFilter?: ArFilterId;  // Filter AR đang kích hoạt
 }
 
 export const defaultBeautySettings: BeautySettings = {
@@ -93,6 +138,8 @@ export const defaultBeautySettings: BeautySettings = {
   contrast: 0,
   warmth: 0,
   presetId: 'off',
+  faceTracking: true,
+  arFilter: 'none',
 };
 
 export type FilterPresetName =

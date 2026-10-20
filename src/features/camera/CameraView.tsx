@@ -1,14 +1,14 @@
-import { useEffect, useCallback, useState, useMemo } from 'react';
+import { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import {
   Camera, CameraOff, RefreshCw,
   Grid, FlipHorizontal, ChevronDown, ChevronUp, AlertTriangle, Square,
-  Sparkles, Wand2, Palette, X, RotateCcw
+  Sparkles, Wand2, Palette, X, RotateCcw, Smile
 } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { useCaptureSession } from '@/hooks/useCaptureSession';
 import { useTimelapse } from '@/hooks/useTimelapse';
 import { useAppContext } from '@/app/AppContext';
-import type { CaptureMode, CaptureSession, BeautySettings, FilterPresetName } from '@/types';
+import type { CaptureMode, CaptureSession, BeautySettings, FilterPresetName, DetectedFace } from '@/types';
 import { defaultBeautySettings, defaultCropState, defaultFilterSettings } from '@/types';
 import { saveSession } from '@/services/storage.service';
 import { formatDuration } from '@/services/export.service';
@@ -18,6 +18,8 @@ import {
   autoEnhanceSettings,
   getCameraLiveCssFilter
 } from '@/services/image-processing.service';
+import { globalFaceTracker } from '@/services/face-tracking.service';
+import { arFiltersList, renderArFilter, renderFaceBeauty } from '@/services/ar-filters.service';
 import { CaptureControls } from '@/features/capture/CaptureControls';
 import { ThumbnailStrip } from '@/features/capture/ThumbnailStrip';
 
@@ -36,8 +38,14 @@ export function CameraView() {
   // Live Beauty, Retouch & Filter State
   const [beauty, setBeauty] = useState<BeautySettings>({ ...defaultBeautySettings });
   const [selectedFilter, setSelectedFilter] = useState<FilterPresetName>('original');
-  const [activeTray, setActiveTray] = useState<'none' | 'beauty' | 'filters'>('none');
+  const [activeTray, setActiveTray] = useState<'none' | 'beauty' | 'filters' | 'ar'>('none');
   const [isAutoEnhanced, setIsAutoEnhanced] = useState(false);
+
+  // AR & Multi-Face Tracking Refs
+  const arCanvasRef = useRef<HTMLCanvasElement>(null);
+  const detectedFacesRef = useRef<DetectedFace[]>([]);
+  const [faceCount, setFaceCount] = useState(0);
+  const animFrameIdRef = useRef<number | null>(null);
 
   // Current active preset settings
   const activePreset = useMemo(
@@ -58,6 +66,64 @@ export function CameraView() {
   useEffect(() => {
     setShowGrid(settings.camera.showGrid);
   }, [settings.camera.showGrid]);
+
+  // Real-time Multi-Face Tracking and AR Rendering Loop
+  useEffect(() => {
+    let active = true;
+
+    const trackAndRenderLoop = async () => {
+      if (!active) return;
+      const video = camera.videoRef.current;
+      const canvas = arCanvasRef.current;
+
+      if (camera.state === 'active' && video && video.readyState >= 2 && canvas) {
+        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+          canvas.width = video.videoWidth || 1280;
+          canvas.height = video.videoHeight || 720;
+        }
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          if (beauty.faceTracking !== false) {
+            try {
+              const faces = await globalFaceTracker.detectAll(video);
+              detectedFacesRef.current = faces;
+              setFaceCount(faces.length);
+
+              if (faces.length > 0) {
+                // 1. Render face-targeted skin smoothing & cheek blush for all faces
+                if (beauty.enabled && (beauty.smooth > 0 || beauty.rosyGlow > 0)) {
+                  renderFaceBeauty(ctx, faces, canvas.width, canvas.height, beauty);
+                }
+
+                // 2. Render AR accessories / filters on all faces
+                if (beauty.arFilter && beauty.arFilter !== 'none') {
+                  renderArFilter(ctx, faces, canvas.width, canvas.height, beauty.arFilter);
+                }
+              }
+            } catch {
+              // Frame dropped or busy
+            }
+          }
+        }
+      }
+
+      animFrameIdRef.current = requestAnimationFrame(trackAndRenderLoop);
+    };
+
+    if (camera.state === 'active') {
+      animFrameIdRef.current = requestAnimationFrame(trackAndRenderLoop);
+    }
+
+    return () => {
+      active = false;
+      if (animFrameIdRef.current) {
+        cancelAnimationFrame(animFrameIdRef.current);
+      }
+    };
+  }, [camera.state, beauty, camera.videoRef]);
 
   const timelapse = useTimelapse(camera.state === 'active' ? camera.videoRef.current?.srcObject as MediaStream | null : null);
 
@@ -113,7 +179,12 @@ export function CameraView() {
       didStartTimelapse = true;
     }
 
-    const captureFrame = () => camera.captureFrame(settings.mirrorCapture, beauty, activePreset?.settings);
+    const captureFrame = () => camera.captureFrame(
+      settings.mirrorCapture,
+      beauty,
+      activePreset?.settings,
+      detectedFacesRef.current.length > 0 ? detectedFacesRef.current : undefined
+    );
     await capture.beginCapture(captureFrame, {
       countdownSeconds: settings.countdownSeconds,
       delayBetweenShots: settings.delayBetweenShots,
@@ -230,6 +301,25 @@ export function CameraView() {
               <div className="badge badge-recording">
                 <div className="recording-dot" />
                 {t('camera.rec')} {formatDuration(timelapse.state.duration)}
+              </div>
+            )}
+
+            {/* Multi-Face tracking indicator badge */}
+            {camera.state === 'active' && beauty.faceTracking !== false && faceCount > 0 && (
+              <div
+                className="badge"
+                style={{
+                  background: 'rgba(236, 72, 153, 0.12)',
+                  color: '#db2777',
+                  border: '1px solid rgba(236, 72, 153, 0.25)',
+                  fontWeight: 600,
+                  fontSize: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                👥 {faceCount} {settings.language === 'vi' ? 'khuôn mặt' : (faceCount > 1 ? 'faces' : 'face')}
               </div>
             )}
           </div>
@@ -374,8 +464,24 @@ export function CameraView() {
                 }}
               />
 
-              {/* Skin smoothing soft glow overlay */}
-              {beauty.enabled && beauty.smooth > 0 && (
+              {/* Live AR Accessories & Face Beauty Tracking Canvas */}
+              <canvas
+                ref={arCanvasRef}
+                id="camera-ar-canvas"
+                className={`camera-video ${mirror ? 'mirror' : ''}`}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  pointerEvents: 'none',
+                  zIndex: 10,
+                }}
+              />
+
+              {/* Fallback skin smoothing overlay when face tracking is disabled */}
+              {beauty.enabled && beauty.faceTracking === false && beauty.smooth > 0 && (
                 <div
                   style={{
                     position: 'absolute',
@@ -390,8 +496,8 @@ export function CameraView() {
                 />
               )}
 
-              {/* Rosy skin glow blush overlay */}
-              {beauty.enabled && beauty.rosyGlow > 0 && (
+              {/* Fallback rosy skin glow overlay when face tracking is disabled */}
+              {beauty.enabled && beauty.faceTracking === false && beauty.rosyGlow > 0 && (
                 <div
                   style={{
                     position: 'absolute',
@@ -524,6 +630,36 @@ export function CameraView() {
                     )}
                   </button>
 
+                  {/* AR Accessories & Face Props Toggle */}
+                  <button
+                    onClick={() => setActiveTray((prev) => (prev === 'ar' ? 'none' : 'ar'))}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '6px 14px',
+                      borderRadius: 99,
+                      background: activeTray === 'ar' || (beauty.arFilter && beauty.arFilter !== 'none')
+                        ? 'linear-gradient(135deg, #10b981, #06b6d4)'
+                        : 'rgba(15, 23, 42, 0.65)',
+                      color: 'white',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      border: activeTray === 'ar' || (beauty.arFilter && beauty.arFilter !== 'none')
+                        ? '1px solid rgba(255,255,255,0.5)'
+                        : '1px solid rgba(255,255,255,0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                      boxShadow: beauty.arFilter && beauty.arFilter !== 'none' ? '0 0 16px rgba(16, 185, 129, 0.45)' : 'none',
+                    }}
+                  >
+                    <Smile size={13} />
+                    {beauty.arFilter && beauty.arFilter !== 'none'
+                      ? (arFiltersList.find((a) => a.id === beauty.arFilter)?.name ?? 'AR')
+                      : t('camera.arFilters')}
+                  </button>
+
                   {/* Live Color Filters Toggle */}
                   <button
                     onClick={() => setActiveTray((prev) => (prev === 'filters' ? 'none' : 'filters'))}
@@ -616,6 +752,55 @@ export function CameraView() {
                         <X size={14} />
                       </button>
                     </div>
+                  </div>
+
+                  {/* Face Tracking Toggle Banner */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div style={{ fontSize: 12 }}>
+                      <div style={{ fontWeight: 600 }}>👤 {t('camera.faceTracking')}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{t('camera.faceTrackingDesc')}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setBeauty((prev) => ({
+                          ...prev,
+                          faceTracking: !prev.faceTracking,
+                        }));
+                      }}
+                      style={{
+                        width: 38,
+                        height: 22,
+                        borderRadius: 99,
+                        background: beauty.faceTracking !== false ? '#fb7185' : 'rgba(255,255,255,0.2)',
+                        position: 'relative',
+                        border: 'none',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 2,
+                          left: beauty.faceTracking !== false ? 18 : 2,
+                          width: 18,
+                          height: 18,
+                          borderRadius: '50%',
+                          background: 'white',
+                          transition: 'left 0.2s',
+                        }}
+                      />
+                    </button>
                   </div>
 
                   {/* Beauty Presets */}
@@ -730,6 +915,179 @@ export function CameraView() {
                         style={{ width: '100%', accentColor: '#fb7185' }}
                       />
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* AR ACCESSORIES & FILTERS DRAWER */}
+              {activeTray === 'ar' && camera.state === 'active' && !isCapturing && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 100,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 'calc(100% - 32px)',
+                    maxWidth: 620,
+                    background: 'rgba(15, 23, 42, 0.90)',
+                    backdropFilter: 'blur(24px)',
+                    WebkitBackdropFilter: 'blur(24px)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '16px 20px',
+                    color: 'white',
+                    zIndex: 35,
+                    boxShadow: '0 20px 48px rgba(0,0,0,0.6)',
+                    maxHeight: 330,
+                    overflowY: 'auto',
+                  }}
+                >
+                  <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+                    <div className="flex items-center gap-2">
+                      <Smile size={16} color="#34d399" />
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>{t('camera.arFilters')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setBeauty((prev) => ({
+                            ...prev,
+                            arFilter: 'none',
+                          }));
+                        }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: 11, padding: '4px 8px', color: 'rgba(255,255,255,0.7)' }}
+                      >
+                        <RotateCcw size={12} />
+                        {t('camera.resetBeauty')}
+                      </button>
+                      <button
+                        onClick={() => setActiveTray('none')}
+                        className="btn btn-icon"
+                        style={{ width: 26, height: 26, color: 'rgba(255,255,255,0.7)' }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Face Tracking Toggle Banner */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ fontSize: 12 }}>
+                      <div style={{ fontWeight: 600 }}>👤 {t('camera.faceTracking')}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{t('camera.faceTrackingDesc')}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setBeauty((prev) => ({
+                          ...prev,
+                          faceTracking: !prev.faceTracking,
+                        }));
+                      }}
+                      style={{
+                        width: 38,
+                        height: 22,
+                        borderRadius: 99,
+                        background: beauty.faceTracking !== false ? '#10b981' : 'rgba(255,255,255,0.2)',
+                        position: 'relative',
+                        border: 'none',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 2,
+                          left: beauty.faceTracking !== false ? 18 : 2,
+                          width: 18,
+                          height: 18,
+                          borderRadius: '50%',
+                          background: 'white',
+                          transition: 'left 0.2s',
+                        }}
+                      />
+                    </button>
+                  </div>
+
+                  {/* AR Filters Grid / Carousel */}
+                  <div
+                    className="flex items-center gap-3"
+                    style={{
+                      overflowX: 'auto',
+                      paddingBottom: 8,
+                      scrollbarWidth: 'thin',
+                    }}
+                  >
+                    {arFiltersList.map((item) => {
+                      const isSelected = (beauty.arFilter ?? 'none') === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setBeauty((prev) => ({
+                              ...prev,
+                              enabled: true,
+                              faceTracking: true,
+                              arFilter: item.id,
+                            }));
+                          }}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 6,
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            padding: '4px',
+                          }}
+                          title={item.description}
+                        >
+                          <div
+                            style={{
+                              width: 54,
+                              height: 54,
+                              borderRadius: 16,
+                              background: isSelected
+                                ? 'linear-gradient(135deg, #10b981, #06b6d4)'
+                                : 'rgba(255, 255, 255, 0.1)',
+                              border: isSelected ? '3px solid #34d399' : '1px solid rgba(255,255,255,0.2)',
+                              boxShadow: isSelected ? '0 0 16px rgba(52, 211, 153, 0.6)' : 'none',
+                              transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                              transition: 'all 0.15s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 26,
+                            }}
+                          >
+                            {item.icon}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: isSelected ? 700 : 500,
+                              color: isSelected ? '#34d399' : 'rgba(255,255,255,0.8)',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {item.name}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

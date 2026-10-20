@@ -1,4 +1,5 @@
-import type { FilterPreset, FilterSettings, FilterPresetName, BeautySettings } from '@/types';
+import type { FilterPreset, FilterSettings, FilterPresetName, BeautySettings, DetectedFace } from '@/types';
+import { renderFaceBeauty, renderArFilter } from '@/services/ar-filters.service';
 
 export const filterPresets: FilterPreset[] = [
   {
@@ -358,39 +359,45 @@ export function getCameraLiveCssFilter(
 }
 
 /**
- * Bakes Beauty & Filter settings into a captured frame canvas
+ * Bakes Beauty & Filter settings into a captured frame canvas, including Face Tracking & AR filters
  */
 export function applyBeautyAndFilterToCanvas(
   canvas: HTMLCanvasElement,
   beauty?: BeautySettings,
-  filterSettings?: FilterSettings
+  filterSettings?: FilterSettings,
+  faces?: DetectedFace | DetectedFace[]
 ): HTMLCanvasElement {
   const ctx = canvas.getContext('2d');
   if (!ctx) return canvas;
 
   const w = canvas.width;
   const h = canvas.height;
+  const faceList = faces ? (Array.isArray(faces) ? faces : [faces]) : [];
 
-  // 1. Skin smoothing layer
-  if (beauty?.enabled && beauty.smooth > 0) {
-    const blurCanvas = document.createElement('canvas');
-    blurCanvas.width = w;
-    blurCanvas.height = h;
-    const blurCtx = blurCanvas.getContext('2d');
-    if (blurCtx) {
-      const radius = Math.max(1, Math.round((beauty.smooth / 100) * (w / 320)));
-      blurCtx.filter = `blur(${radius}px)`;
-      blurCtx.drawImage(canvas, 0, 0);
+  // 1. Skin smoothing layer & targeted blush
+  if (beauty?.enabled && (beauty.smooth > 0 || beauty.rosyGlow > 0)) {
+    if (faceList.length > 0) {
+      renderFaceBeauty(ctx, faceList, w, h, beauty);
+    } else if (beauty.smooth > 0) {
+      const blurCanvas = document.createElement('canvas');
+      blurCanvas.width = w;
+      blurCanvas.height = h;
+      const blurCtx = blurCanvas.getContext('2d');
+      if (blurCtx) {
+        const radius = Math.max(1, Math.round((beauty.smooth / 100) * (w / 320)));
+        blurCtx.filter = `blur(${radius}px)`;
+        blurCtx.drawImage(canvas, 0, 0);
 
-      ctx.save();
-      ctx.globalAlpha = Math.min(0.5, (beauty.smooth / 100) * 0.5);
-      ctx.drawImage(blurCanvas, 0, 0);
-      ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.5, (beauty.smooth / 100) * 0.5);
+        ctx.drawImage(blurCanvas, 0, 0);
+        ctx.restore();
+      }
     }
   }
 
-  // 2. Rosy skin glow
-  if (beauty?.enabled && beauty.rosyGlow > 0) {
+  // 2. Rosy skin glow (if no face was used for targeted blush)
+  if (faceList.length === 0 && beauty?.enabled && beauty.rosyGlow > 0) {
     ctx.save();
     ctx.globalCompositeOperation = 'soft-light';
     const rosyAlpha = Math.min(0.35, (beauty.rosyGlow / 100) * 0.35);
@@ -447,6 +454,11 @@ export function applyBeautyAndFilterToCanvas(
 
   if (filterSettings?.grain && filterSettings.grain > 0) {
     applyGrain(ctx, w, h, filterSettings.grain);
+  }
+
+  // 6. Render AR filter on top of the captured photo
+  if (faceList.length > 0 && beauty?.arFilter && beauty.arFilter !== 'none') {
+    renderArFilter(ctx, faceList, w, h, beauty.arFilter);
   }
 
   return canvas;

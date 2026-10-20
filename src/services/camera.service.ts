@@ -1,5 +1,6 @@
-import type { CameraDevice, CameraSettings, CameraCapabilities, Resolution, BeautySettings, FilterSettings } from '@/types';
+import type { CameraDevice, CameraSettings, CameraCapabilities, Resolution, BeautySettings, FilterSettings, DetectedFace } from '@/types';
 import { applyBeautyAndFilterToCanvas } from '@/services/image-processing.service';
+import { mirrorFace } from '@/services/face-tracking.service';
 
 const RESOLUTION_CONSTRAINTS: Record<Resolution, MediaTrackConstraints> = {
   '480p': { width: { ideal: 854 }, height: { ideal: 480 } },
@@ -91,6 +92,7 @@ export class CameraService {
     targetHeight?: number,
     beauty?: BeautySettings,
     filterSettings?: FilterSettings,
+    faces?: DetectedFace | DetectedFace[],
   ): HTMLCanvasElement {
     const rawW = video.videoWidth > 0 ? video.videoWidth : 1280;
     const rawH = video.videoHeight > 0 ? video.videoHeight : 720;
@@ -102,14 +104,21 @@ export class CameraService {
     const ctx = canvas.getContext('2d');
     if (!ctx) return canvas;
 
+    ctx.save();
     if (mirror) {
       ctx.translate(w, 0);
       ctx.scale(-1, 1);
     }
     ctx.drawImage(video, 0, 0, w, h);
+    ctx.restore();
 
     if (beauty?.enabled || filterSettings) {
-      applyBeautyAndFilterToCanvas(canvas, beauty, filterSettings);
+      let effectiveFaces: DetectedFace[] | undefined;
+      if (faces) {
+        const rawList = Array.isArray(faces) ? faces : [faces];
+        effectiveFaces = mirror ? rawList.map(mirrorFace) : rawList;
+      }
+      applyBeautyAndFilterToCanvas(canvas, beauty, filterSettings, effectiveFaces);
     }
 
     return canvas;

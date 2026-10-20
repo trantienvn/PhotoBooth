@@ -109,3 +109,93 @@ describe('MediaRecorder MIME types', () => {
     expect(preferred[0]).toContain('video/webm');
   });
 });
+
+// ── Face Tracking & AR Filters tests ───────────────────────
+
+describe('face-tracking & ar-filters', () => {
+  it('should export all 10 AR filters with icons and descriptions', async () => {
+    const { arFiltersList } = await import('@/services/ar-filters.service');
+    expect(arFiltersList.length).toBe(10);
+    const ids = arFiltersList.map((f) => f.id);
+    expect(ids).toContain('none');
+    expect(ids).toContain('bunny');
+    expect(ids).toContain('cat');
+    expect(ids).toContain('heart_glasses');
+    expect(ids).toContain('crown');
+    expect(ids).toContain('sparkles');
+    expect(ids).toContain('blush_hearts');
+    expect(ids).toContain('dog');
+    expect(ids).toContain('flower');
+    expect(ids).toContain('angel');
+  });
+
+  it('mirrorFace should accurately mirror face horizontally and swap eyes/cheeks', async () => {
+    const { mirrorFace } = await import('@/services/face-tracking.service');
+    const originalFace = {
+      x: 0.2,
+      y: 0.2,
+      width: 0.4,
+      height: 0.5,
+      leftEye: { x: 0.32, y: 0.35 },
+      rightEye: { x: 0.48, y: 0.35 },
+      leftCheek: { x: 0.28, y: 0.48 },
+      rightCheek: { x: 0.52, y: 0.48 },
+      forehead: { x: 0.40, y: 0.25 },
+      chin: { x: 0.40, y: 0.65 },
+      nose: { x: 0.40, y: 0.45 },
+      mouth: { x: 0.40, y: 0.55 },
+      roll: 0.15,
+      confidence: 0.9,
+    };
+
+    const mirrored = mirrorFace(originalFace);
+
+    // Bounding box x should be 1 - (0.2 + 0.4) = 0.4
+    expect(mirrored.x).toBeCloseTo(0.4, 2);
+    expect(mirrored.width).toBeCloseTo(0.4, 2);
+
+    // Left eye (on photo) should now be derived from original right eye: 1 - 0.48 = 0.52
+    expect(mirrored.leftEye.x).toBeCloseTo(0.52, 2);
+    // Right eye (on photo) should now be derived from original left eye: 1 - 0.32 = 0.68
+    expect(mirrored.rightEye.x).toBeCloseTo(0.68, 2);
+
+    // Cheeks should be swapped horizontally
+    expect(mirrored.leftCheek.x).toBeCloseTo(0.48, 2); // 1 - 0.52
+    expect(mirrored.rightCheek.x).toBeCloseTo(0.72, 2); // 1 - 0.28
+
+    // Forehead and chin x mirrored
+    expect(mirrored.forehead.x).toBeCloseTo(0.60, 2); // 1 - 0.40
+    expect(mirrored.chin.x).toBeCloseTo(0.60, 2);
+
+    // Roll angle should be inverted
+    expect(mirrored.roll).toBeCloseTo(-0.15, 2);
+  });
+
+  it('mirrorFaces should mirror an array of multiple faces', async () => {
+    const { mirrorFaces } = await import('@/services/face-tracking.service');
+    const faces = [
+      {
+        x: 0.1, y: 0.2, width: 0.3, height: 0.4,
+        leftEye: { x: 0.18, y: 0.3 }, rightEye: { x: 0.32, y: 0.3 },
+        leftCheek: { x: 0.15, y: 0.4 }, rightCheek: { x: 0.35, y: 0.4 },
+        forehead: { x: 0.25, y: 0.22 }, chin: { x: 0.25, y: 0.55 },
+        nose: { x: 0.25, y: 0.38 }, mouth: { x: 0.25, y: 0.48 },
+        roll: 0.1, confidence: 0.9,
+      },
+      {
+        x: 0.6, y: 0.2, width: 0.3, height: 0.4,
+        leftEye: { x: 0.68, y: 0.3 }, rightEye: { x: 0.82, y: 0.3 },
+        leftCheek: { x: 0.65, y: 0.4 }, rightCheek: { x: 0.85, y: 0.4 },
+        forehead: { x: 0.75, y: 0.22 }, chin: { x: 0.75, y: 0.55 },
+        nose: { x: 0.75, y: 0.38 }, mouth: { x: 0.75, y: 0.48 },
+        roll: -0.1, confidence: 0.9,
+      },
+    ];
+
+    const mirrored = mirrorFaces(faces);
+    expect(mirrored.length).toBe(2);
+    expect(mirrored[0].x).toBeCloseTo(1 - (0.1 + 0.3), 2);
+    expect(mirrored[1].x).toBeCloseTo(1 - (0.6 + 0.3), 2);
+  });
+});
+
