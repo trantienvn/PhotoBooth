@@ -32,7 +32,7 @@ export function GalleryView() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center" style={{ flex: 1, width: '100%', height: '100%' }}>
         <div className="spinner" style={{ width: 40, height: 40 }} />
       </div>
     );
@@ -40,7 +40,7 @@ export function GalleryView() {
 
   if (sessions.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center" style={{ flex: 1, width: '100%', height: '100%' }}>
         <div className="empty-state">
           <div className="empty-icon"><Images size={32} /></div>
           <h3 style={{ fontWeight: 600 }}>No saved sessions</h3>
@@ -52,7 +52,7 @@ export function GalleryView() {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: 24, width: '100%' }}>
       <div className="flex items-center justify-between" style={{ marginBottom: 24 }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28 }}>
           🖼️ Gallery

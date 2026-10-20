@@ -76,7 +76,7 @@ export function CameraView() {
   const isCapturing = capture.status === 'countdown' || capture.status === 'capturing';
 
   return (
-    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', overflow: 'hidden' }}>
+    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
       {/* Sidebar: capture controls */}
       <div className="app-sidebar" style={{ width: 'var(--sidebar-w)', minWidth: 'var(--sidebar-w)', flexShrink: 0 }}>
         <CaptureControls

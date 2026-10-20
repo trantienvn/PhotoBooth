@@ -421,6 +421,31 @@ a {
   margin-bottom: var(--space-2);
 }
 
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-8);
+  gap: var(--space-3);
+  max-width: 440px;
+  margin: auto;
+}
+
+.empty-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-xl);
+  background: var(--brand-gradient-subtle);
+  color: var(--brand-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-2);
+  box-shadow: var(--shadow-sm);
+}
+
 /* ── Camera Preview ───────────────────────────────────────── */
 .camera-container {
   position: relative;

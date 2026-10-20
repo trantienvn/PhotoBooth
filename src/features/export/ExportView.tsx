@@ -113,7 +113,7 @@ export function ExportView() {
 
   if (photos.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center" style={{ flex: 1, width: '100%', height: '100%' }}>
         <div className="empty-state">
           <div className="empty-icon"><Download size={32} /></div>
           <h3 style={{ fontWeight: 600 }}>Nothing to export</h3>
@@ -125,9 +125,9 @@ export function ExportView() {
   }
 
   return (
-    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', overflow: 'hidden' }}>
+    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
       {/* Left sidebar */}
-      <div className="app-sidebar" style={{ width: 300, minWidth: 300 }}>
+      <div className="app-sidebar" style={{ width: 320, minWidth: 320, flexShrink: 0 }}>
         {/* Tabs */}
         <div style={{ padding: '10px 10px 0' }}>
           <div className="tab-bar">
@@ -308,29 +308,46 @@ export function ExportView() {
       </div>
 
       {/* Main: preview + export button */}
-      <div className="app-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, flex: 1, width: '100%', minWidth: 0, position: 'relative' }}>
+      <div className="app-main" style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        gap: 16,
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        minWidth: 0,
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
         {isRendering && (
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3 }}>
             <div style={{ height: '100%', background: 'var(--brand-gradient)', width: `${renderProgress * 100}%`, transition: 'width 0.3s' }} />
           </div>
         )}
 
-        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, textAlign: 'center' }}>
           {selectedTemplate?.name ?? 'Choose a Template'}
         </h2>
 
         {/* Preview */}
         {previewDataUrl && !isRendering && (
           <div style={{
-            maxHeight: 'calc(100vh - 220px)',
+            maxHeight: 'calc(100vh - 240px)',
             overflow: 'auto',
             borderRadius: 'var(--radius-xl)',
             boxShadow: 'var(--shadow-xl)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: 'auto',
           }}>
             <img
               src={previewDataUrl}
               alt="Photostrip preview"
-              style={{ display: 'block', maxWidth: '100%', borderRadius: 'var(--radius-xl)' }}
+              style={{ display: 'block', maxWidth: '100%', maxHeight: 'calc(100vh - 240px)', objectFit: 'contain', borderRadius: 'var(--radius-xl)' }}
             />
           </div>
         )}
@@ -343,6 +360,7 @@ export function ExportView() {
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             gap: 12, color: 'var(--text-tertiary)',
+            margin: 'auto',
           }}>
             <div className="spinner" style={{ width: 32, height: 32 }} />
             <span style={{ fontSize: 13 }}>Rendering preview…</span>

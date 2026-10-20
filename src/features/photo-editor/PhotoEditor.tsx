@@ -116,7 +116,7 @@ export function PhotoEditor() {
 
   if (!currentSession || photos.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center" style={{ flex: 1, width: '100%', height: '100%' }}>
         <div className="empty-state">
           <div className="empty-icon"><Sliders size={32} /></div>
           <h3 style={{ fontWeight: 600 }}>No photos to edit</h3>
@@ -130,9 +130,9 @@ export function PhotoEditor() {
   }
 
   return (
-    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', overflow: 'hidden' }}>
+    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
       {/* Left: Photo list + controls */}
-      <div className="app-sidebar" style={{ width: 260 }}>
+      <div className="app-sidebar" style={{ width: 280, minWidth: 280, flexShrink: 0 }}>
         <div className="section-header">Photos</div>
         <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {photos.map((photo, i) => (
@@ -218,7 +218,19 @@ export function PhotoEditor() {
       </div>
 
       {/* Main: preview */}
-      <div className="app-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, flex: 1, width: '100%', minWidth: 0 }}>
+      <div className="app-main" style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        gap: 16,
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        minWidth: 0,
+        overflow: 'hidden',
+      }}>
         {/* Navigation */}
         <div className="flex items-center gap-3">
           <button className="btn btn-icon btn-secondary" onClick={goPrev} disabled={photos.indexOf(selectedPhoto!) <= 0}>
@@ -242,7 +254,15 @@ export function PhotoEditor() {
 
         {/* Preview */}
         {selectedPhoto && (
-          <div style={{ position: 'relative', maxWidth: '100%', maxHeight: 'calc(100vh - 250px)' }}>
+          <div style={{
+            position: 'relative',
+            maxWidth: '100%',
+            maxHeight: 'calc(100vh - 220px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: 'auto',
+          }}>
             <FilteredPreview
               key={`${selectedPhoto.id}-${previewKey}`}
               photo={selectedPhoto}

@@ -19,17 +19,17 @@ function AppContent() {
       background: 'var(--surface-bg)',
     }}>
       <Header />
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', width: '100%', minHeight: 0 }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', width: '100%', height: '100%', minHeight: 0 }}>
         {currentView === 'camera' && <CameraView />}
         {currentView === 'gallery' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, overflowY: 'auto', width: '100%', height: '100%' }}>
             <GalleryView />
           </div>
         )}
         {currentView === 'editor' && <PhotoEditor />}
         {currentView === 'export' && <ExportView />}
         {currentView === 'settings' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, overflowY: 'auto', width: '100%', height: '100%' }}>
             <SettingsView />
           </div>
         )}

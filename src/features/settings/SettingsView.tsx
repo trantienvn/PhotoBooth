@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Trash2, RotateCcw } from 'lucide-react';
 import { useAppContext } from '@/app/AppContext';
 import { clearAllData, estimateStorageUsage } from '@/services/storage.service';
@@ -148,7 +148,7 @@ export function SettingsView() {
       </SettingSection>
 
       {/* Storage */}
-      <SettingSection title="💾 Storage & Privacy">
+      <SettingSection title="💾 Storage & Privacy" padded>
         {storageUsed && (
           <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
             Storage used: <strong>{storageUsed}</strong> of {storageQuota}
@@ -171,7 +171,7 @@ export function SettingsView() {
       </SettingSection>
 
       {/* About */}
-      <SettingSection title="ℹ️ About">
+      <SettingSection title="ℹ️ About" padded>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
           <p><strong>LumiBooth</strong> v1.0.0</p>
           <p>A browser-based photobooth application built with React + TypeScript + Vite.</p>
@@ -187,20 +187,20 @@ export function SettingsView() {
   );
 }
 
-function SettingSection({ title, children }: { title: string; children: React.ReactNode }) {
+function SettingSection({ title, children, padded }: { title: string; children: ReactNode; padded?: boolean }) {
   return (
     <div style={{ marginBottom: 32 }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, marginBottom: 16, color: 'var(--text-primary)' }}>
         {title}
       </h2>
-      <div className="card" style={{ padding: '4px 0' }}>
+      <div className="card" style={{ padding: padded ? '20px' : '4px 0' }}>
         {children}
       </div>
     </div>
   );
 }
 
-function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
+function SettingRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div style={{
       display: 'flex',

@@ -291,7 +291,7 @@ export const defaultAppSettings: AppSettings = {
   defaultPhotoCount: 4,
   delayBetweenShots: 1500,
   soundEnabled: true,
-  mirrorCapture: false,
+  mirrorCapture: true,
   theme: 'system',
   showWatermark: true,
   language: 'en',
