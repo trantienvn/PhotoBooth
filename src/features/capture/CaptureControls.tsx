@@ -3,6 +3,7 @@ import { Camera, Video, Pause, Play, Square, Download, Repeat } from 'lucide-rea
 import type { AppSettings, CaptureMode } from '@/types';
 import { formatDuration, formatBytes } from '@/services/export.service';
 import type { useTimelapse } from '@/hooks/useTimelapse';
+import { useAppContext } from '@/app/AppContext';
 
 const PHOTO_COUNTS = [3, 4, 5, 6, 8, 9, 12];
 const COUNTDOWN_OPTIONS = [0, 3, 5, 10];
@@ -38,6 +39,7 @@ export function CaptureControls({
   timelapse,
   cameraStream,
 }: CaptureControlsProps) {
+  const { t } = useAppContext();
   const [mode, setMode] = useState<CaptureMode>('photobooth');
   const [photoCount, setPhotoCount] = useState(settings.defaultPhotoCount);
   const [customCount, setCustomCount] = useState<number | null>(null);
@@ -67,7 +69,7 @@ export function CaptureControls({
 
   return (
     <div className="flex flex-col h-full" style={{ padding: 0 }}>
-      <div className="section-header">Mode</div>
+      <div className="section-header">{t('controls.mode')}</div>
 
       {/* Mode selector */}
       <div style={{ padding: '0 12px 12px' }}>
@@ -79,7 +81,7 @@ export function CaptureControls({
               onClick={() => setMode(m)}
               style={{ fontSize: 12 }}
             >
-              {m === 'single' ? '1x' : m === 'photobooth' ? 'Strip' : 'Free'}
+              {m === 'single' ? t('camera.singleMode') : m === 'photobooth' ? t('camera.stripMode') : t('camera.freeMode')}
             </button>
           ))}
         </div>
@@ -88,7 +90,7 @@ export function CaptureControls({
       {/* Photo count (only for photobooth mode) */}
       {mode === 'photobooth' && (
         <>
-          <div className="section-header">Photos</div>
+          <div className="section-header">{t('controls.photos')}</div>
           <div style={{ padding: '0 12px 12px' }}>
             <div className="chip-group">
               {PHOTO_COUNTS.map((n) => (
@@ -104,7 +106,7 @@ export function CaptureControls({
               <button
                 className={`chip ${customCount !== null ? 'active' : ''}`}
                 onClick={() => {
-                  const val = prompt('Enter number of photos (1-20):');
+                  const val = prompt(t('controls.customPrompt'));
                   if (val) {
                     const n = parseInt(val);
                     if (n >= 1 && n <= 20) setCustomCount(n);
@@ -112,7 +114,7 @@ export function CaptureControls({
                 }}
                 disabled={isCapturing}
               >
-                {customCount ? `${customCount}✓` : 'Custom'}
+                {customCount ? `${customCount}✓` : t('controls.custom')}
               </button>
             </div>
           </div>
@@ -120,7 +122,7 @@ export function CaptureControls({
       )}
 
       {/* Countdown */}
-      <div className="section-header">Countdown</div>
+      <div className="section-header">{t('controls.countdown')}</div>
       <div style={{ padding: '0 12px 12px' }}>
         <div className="chip-group">
           {COUNTDOWN_OPTIONS.map((s) => (
@@ -129,7 +131,7 @@ export function CaptureControls({
               className={`chip ${settings.countdownSeconds === s ? 'active' : ''}`}
               onClick={() => updateSettings({ countdownSeconds: s })}
             >
-              {s === 0 ? 'Off' : `${s}s`}
+              {s === 0 ? t('settings.countdownOff') : `${s}s`}
             </button>
           ))}
         </div>
@@ -138,7 +140,7 @@ export function CaptureControls({
       {/* Delay between shots */}
       {mode === 'photobooth' && (
         <>
-          <div className="section-header">Delay Between Shots</div>
+          <div className="section-header">{t('controls.delay')}</div>
           <div style={{ padding: '0 12px 12px' }}>
             <div className="chip-group">
               {[500, 1000, 1500, 2000, 3000].map((ms) => (
@@ -159,7 +161,7 @@ export function CaptureControls({
       {isCapturing && totalCount > 1 && (
         <div style={{ padding: '0 12px 12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
-            <span>Progress</span>
+            <span>{t('camera.shotProgress', { current: capturedCount, total: totalCount })}</span>
             <span style={{ fontWeight: 600, color: 'var(--brand-primary)' }}>{capturedCount} / {totalCount}</span>
           </div>
           <div className="progress-bar">
@@ -179,7 +181,7 @@ export function CaptureControls({
             style={{ height: 56 }}
           >
             <Camera size={22} />
-            {mode === 'single' ? 'Take Photo' : `Capture ${effectiveCount} Photos`}
+            {mode === 'single' ? t('camera.capture') : `${t('camera.startPhotobooth')} (${effectiveCount})`}
           </button>
         ) : (
           <button
@@ -188,7 +190,7 @@ export function CaptureControls({
             onClick={onCancel}
           >
             <Square size={18} />
-            Cancel
+            {t('camera.cancel')}
           </button>
         )}
       </div>
@@ -198,14 +200,14 @@ export function CaptureControls({
         <div style={{ padding: '0 12px' }}>
           <button className="btn btn-ghost w-full" style={{ fontSize: 13 }} onClick={onReset}>
             <Repeat size={14} />
-            New Session
+            {t('camera.startPhotobooth')}
           </button>
         </div>
       )}
 
       {/* Timelapse section */}
       <div style={{ marginTop: 'auto' }}>
-        <div className="section-header">Timelapse Recording</div>
+        <div className="section-header">{t('controls.timelapse')}</div>
         <div style={{ padding: '0 12px 12px' }}>
           {timelapse.state.status === 'idle' || timelapse.state.status === 'stopped' ? (
             <button
@@ -273,7 +275,7 @@ export function CaptureControls({
       {/* Settings quick options */}
       <div style={{ padding: '12px', borderTop: '1px solid var(--border-subtle)' }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Sound</span>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{t('controls.sound')}</span>
           <button
             className={`btn btn-icon ${settings.soundEnabled ? 'btn-primary' : 'btn-secondary'}`}
             style={{ width: 32, height: 32, fontSize: 11 }}
@@ -284,7 +286,7 @@ export function CaptureControls({
           </button>
         </div>
         <div className="flex items-center justify-between">
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Mirror capture</span>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{t('settings.mirrorCapture')}</span>
           <button
             className={`btn btn-icon ${settings.mirrorCapture ? 'btn-primary' : 'btn-secondary'}`}
             style={{ width: 32, height: 32, fontSize: 11 }}

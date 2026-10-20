@@ -47,6 +47,7 @@ export async function downloadAllAsZip(
   sessionId: string,
   format: ExportFormat = 'jpeg',
   _quality = 0.92,
+  timelapseBlob?: Blob,
 ): Promise<void> {
   try {
     const JSZip = (await import('jszip')).default;
@@ -59,6 +60,10 @@ export async function downloadAllAsZip(
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       zip.file(`lumibooth_${sessionId.slice(-6)}_${String(photo.index + 1).padStart(2, '0')}.${ext}`, blob);
+    }
+
+    if (timelapseBlob) {
+      zip.file(`lumibooth_${sessionId.slice(-6)}_timelapse.webm`, timelapseBlob);
     }
 
     const zipBlob = await zip.generateAsync({ type: 'blob' }, (meta) => {

@@ -68,7 +68,8 @@ export async function getSession(id: string): Promise<CaptureSession | null> {
   if (!sessionData) return null;
   const photos = await database.getAllFromIndex('photos', 'by-sessionId', id);
   photos.sort((a, b) => a.index - b.index);
-  return { ...sessionData, photos };
+  const timelapseUrl = sessionData.timelapseBlob ? URL.createObjectURL(sessionData.timelapseBlob) : sessionData.timelapseUrl;
+  return { ...sessionData, photos, timelapseUrl };
 }
 
 export async function getAllSessions(): Promise<CaptureSession[]> {
@@ -78,7 +79,8 @@ export async function getAllSessions(): Promise<CaptureSession[]> {
   for (const s of sessions.reverse()) {
     const photos = await database.getAllFromIndex('photos', 'by-sessionId', s.id);
     photos.sort((a, b) => a.index - b.index);
-    result.push({ ...s, photos });
+    const timelapseUrl = s.timelapseBlob ? URL.createObjectURL(s.timelapseBlob) : s.timelapseUrl;
+    result.push({ ...s, photos, timelapseUrl });
   }
   return result;
 }

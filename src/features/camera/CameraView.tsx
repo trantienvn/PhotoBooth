@@ -1,25 +1,29 @@
 import { useEffect, useCallback, useState } from 'react';
 import {
   Camera, CameraOff, RefreshCw,
-  Grid, FlipHorizontal, ChevronDown, ChevronUp, AlertTriangle
+  Grid, FlipHorizontal, ChevronDown, ChevronUp, AlertTriangle, Square
 } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { useCaptureSession } from '@/hooks/useCaptureSession';
 import { useTimelapse } from '@/hooks/useTimelapse';
 import { useAppContext } from '@/app/AppContext';
-import type { CaptureMode } from '@/types';
+import type { CaptureMode, CaptureSession } from '@/types';
 import { saveSession } from '@/services/storage.service';
 import { formatDuration } from '@/services/export.service';
 import { CaptureControls } from '@/features/capture/CaptureControls';
 import { ThumbnailStrip } from '@/features/capture/ThumbnailStrip';
 
 export function CameraView() {
-  const { settings, updateSettings, setCurrentSession, setView, toast } = useAppContext();
+  const { settings, updateSettings, setCurrentSession, setView, toast, t } = useAppContext();
   const camera = useCamera();
   const capture = useCaptureSession();
   const [showGrid, setShowGrid] = useState(settings.camera.showGrid);
   const [mirror, setMirror] = useState(settings.camera.mirror);
   const [deviceSelectOpen, setDeviceSelectOpen] = useState(false);
+
+  // In-preview quick capture controls
+  const [previewMode, setPreviewMode] = useState<CaptureMode>('photobooth');
+  const [previewCount, setPreviewCount] = useState<number>(settings.defaultPhotoCount || 4);
 
   useEffect(() => {
     setMirror(settings.camera.mirror);
@@ -31,20 +35,6 @@ export function CameraView() {
 
   const timelapse = useTimelapse(camera.state === 'active' ? camera.videoRef.current?.srcObject as MediaStream | null : null);
 
-  // When session is done, navigate to editor
-  useEffect(() => {
-    if (
-      capture.session &&
-      capture.status === 'reviewing' &&
-      capture.session.photos.length > 0 &&
-      capture.session.photos.length >= capture.session.totalCount
-    ) {
-      setCurrentSession(capture.session);
-      toast('Photos captured! Choose a template to continue.', 'success');
-      setView('editor');
-    }
-  }, [capture.status, capture.session, setCurrentSession, setView, toast]);
-
   const handleStartCamera = useCallback(async () => {
     await camera.startCamera(settings.camera);
   }, [camera, settings.camera]);
@@ -55,7 +45,7 @@ export function CameraView() {
 
   const handleCapture = useCallback(async (mode: CaptureMode, count: number) => {
     if (camera.state !== 'active') {
-      toast('Please start camera first', 'error');
+      toast(t('camera.startCamera') + '…', 'error');
       return;
     }
     const newSession = capture.startSession(mode, count);
@@ -79,23 +69,36 @@ export function CameraView() {
     }, newSession);
 
     // Stop timelapse if recording and attach to session
+    let finalVideoUrl: string | undefined;
+    let finalVideoBlob: Blob | undefined;
     if (didStartTimelapse || timelapse.state.status === 'recording') {
       try {
         const videoRes = await timelapse.stopRecording();
         if (videoRes) {
-          const updatedWithVideo = {
-            ...newSession,
-            timelapseUrl: videoRes.url,
-            timelapseBlob: videoRes.blob,
-          };
-          setCurrentSession(updatedWithVideo);
-          saveSession(updatedWithVideo).catch(console.error);
+          finalVideoUrl = videoRes.url;
+          finalVideoBlob = videoRes.blob;
         }
       } catch (err) {
         console.error('Error stopping timelapse:', err);
       }
     }
-  }, [camera, capture, settings, setCurrentSession, timelapse, toast]);
+
+    // Now update and save the complete session with photos + timelapse
+    const currentSessionPhotos = capture.session?.photos ?? [];
+    if (currentSessionPhotos.length > 0) {
+      const completedSession: CaptureSession = {
+        ...(capture.session ?? newSession),
+        photos: currentSessionPhotos,
+        status: 'reviewing',
+        timelapseUrl: finalVideoUrl,
+        timelapseBlob: finalVideoBlob,
+      };
+      setCurrentSession(completedSession);
+      await saveSession(completedSession).catch(console.error);
+      toast(t('camera.capturedSuccess'), 'success');
+      setView('editor');
+    }
+  }, [camera, capture, settings, setCurrentSession, timelapse, toast, t, setView]);
 
   const handleSingleCapture = useCallback(() => {
     handleCapture('single', 1);
@@ -156,14 +159,14 @@ export function CameraView() {
                 borderRadius: '50%',
                 background: camera.state === 'active' ? '#22c55e' : 'var(--neutral-400)',
               }} />
-              {camera.state === 'active' ? 'Live' : camera.state === 'requesting' ? 'Starting…' : 'Camera Off'}
+              {camera.state === 'active' ? t('camera.live') : camera.state === 'requesting' ? t('camera.starting') : t('camera.cameraOff')}
             </div>
 
             {/* Timelapse status */}
             {timelapse.state.status === 'recording' && (
               <div className="badge badge-recording">
                 <div className="recording-dot" />
-                REC {formatDuration(timelapse.state.duration)}
+                {t('camera.rec')} {formatDuration(timelapse.state.duration)}
               </div>
             )}
           </div>
@@ -178,7 +181,7 @@ export function CameraView() {
                   onClick={() => setDeviceSelectOpen((o) => !o)}
                 >
                   <Camera size={14} />
-                  Switch Camera
+                  {t('camera.switchCamera')}
                   {deviceSelectOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>
                 {deviceSelectOpen && (
@@ -215,8 +218,8 @@ export function CameraView() {
               id="toggle-mirror"
               className={`btn btn-icon ${mirror ? 'btn-primary' : 'btn-secondary'}`}
               onClick={toggleMirror}
-              title="Toggle mirror"
-              aria-label="Toggle mirror"
+              title={t('camera.toggleMirror')}
+              aria-label={t('camera.toggleMirror')}
             >
               <FlipHorizontal size={16} />
             </button>
@@ -226,8 +229,8 @@ export function CameraView() {
               id="toggle-grid"
               className={`btn btn-icon ${showGrid ? 'btn-primary' : 'btn-secondary'}`}
               onClick={toggleGrid}
-              title="Toggle grid"
-              aria-label="Toggle composition grid"
+              title={t('camera.toggleGrid')}
+              aria-label={t('camera.toggleGrid')}
             >
               <Grid size={16} />
             </button>
@@ -241,9 +244,9 @@ export function CameraView() {
                 disabled={camera.state === 'requesting'}
               >
                 {camera.state === 'requesting' ? (
-                  <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Starting…</>
+                  <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> {t('camera.starting')}</>
                 ) : (
-                  <><Camera size={16} /> Start Camera</>
+                  <><Camera size={16} /> {t('camera.startCamera')}</>
                 )}
               </button>
             ) : (
@@ -253,7 +256,7 @@ export function CameraView() {
                 onClick={handleStopCamera}
               >
                 <CameraOff size={16} />
-                Stop
+                {t('camera.stopCamera')}
               </button>
             )}
           </div>
@@ -280,12 +283,15 @@ export function CameraView() {
             <div
               className="camera-container"
               style={{
+                position: 'relative',
                 width: '100%',
                 maxWidth: 880,
                 maxHeight: 'calc(100vh - var(--header-h) - 180px)',
                 aspectRatio: '4/3',
                 boxShadow: 'var(--shadow-xl)',
                 margin: 'auto',
+                overflow: 'hidden',
+                borderRadius: 'var(--radius-xl)',
               }}
             >
               <video
@@ -295,7 +301,7 @@ export function CameraView() {
                 playsInline
                 muted
                 className={`camera-video ${mirror ? 'mirror' : ''}`}
-                style={{ background: '#000' }}
+                style={{ background: '#000', width: '100%', height: '100%', objectFit: 'cover' }}
               />
 
               {/* Grid overlay */}
@@ -326,17 +332,168 @@ export function CameraView() {
               {capture.session && isCapturing && (
                 <div style={{
                   position: 'absolute',
-                  bottom: 12,
+                  top: 16,
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  background: 'rgba(0,0,0,0.6)',
+                  background: 'rgba(0,0,0,0.65)',
+                  backdropFilter: 'blur(8px)',
                   color: 'white',
-                  padding: '4px 14px',
+                  padding: '6px 18px',
                   borderRadius: 99,
                   fontSize: 13,
                   fontWeight: 600,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  zIndex: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
                 }}>
-                  {capture.session.capturedCount + 1} / {capture.session.totalCount}
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s infinite' }} />
+                  {t('camera.shotProgress', { current: capture.session.capturedCount + 1, total: capture.session.totalCount })}
+                </div>
+              )}
+
+              {/* FLOATING CAPTURE BUTTON AT BOTTOM INSIDE PREVIEW FRAME */}
+              {camera.state === 'active' && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 22,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 25,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 16,
+                    padding: '8px 18px',
+                    borderRadius: 99,
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
+                  }}
+                >
+                  {/* Mode / Count quick switcher */}
+                  {!isCapturing && (
+                    <div className="flex items-center gap-1">
+                      {(['single', 'photobooth'] as CaptureMode[]).map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => setPreviewMode(m)}
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            padding: '6px 12px',
+                            borderRadius: 99,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: previewMode === m ? 'rgba(255,255,255,0.25)' : 'transparent',
+                            color: previewMode === m ? '#fff' : 'rgba(255,255,255,0.7)',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {m === 'single' ? t('camera.singleMode') : `${previewCount}x ${t('camera.stripMode')}`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Main Shutter Button */}
+                  <button
+                    id="camera-preview-shutter-btn"
+                    onClick={() => {
+                      if (isCapturing) {
+                        capture.cancelSession();
+                      } else {
+                        handleCapture(previewMode, previewMode === 'single' ? 1 : previewCount);
+                      }
+                    }}
+                    disabled={camera.state !== 'active'}
+                    style={{
+                      width: 66,
+                      height: 66,
+                      borderRadius: '50%',
+                      border: '4px solid rgba(255, 255, 255, 0.95)',
+                      background: 'transparent',
+                      padding: 3,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 0 20px rgba(0,0,0,0.6)',
+                      transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    }}
+                    onMouseDown={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(0.92)'; }}
+                    onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = ''; }}
+                    title={isCapturing ? t('camera.cancel') : t('camera.capture')}
+                    aria-label={isCapturing ? t('camera.cancel') : t('camera.capture')}
+                  >
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      background: isCapturing
+                        ? 'var(--color-danger)'
+                        : 'var(--brand-gradient)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      boxShadow: isCapturing ? '0 0 16px rgba(239,68,68,0.8)' : '0 0 16px rgba(167,139,250,0.6)',
+                    }}>
+                      {isCapturing ? (
+                        <Square size={20} fill="#fff" />
+                      ) : (
+                        <Camera size={26} />
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Quick count toggle or cancel button */}
+                  {isCapturing ? (
+                    <button
+                      onClick={capture.cancelSession}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: '6px 14px',
+                        borderRadius: 99,
+                        border: 'none',
+                        background: 'rgba(239, 68, 68, 0.85)',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                      }}
+                    >
+                      {t('camera.cancel')}
+                    </button>
+                  ) : previewMode === 'photobooth' ? (
+                    <div className="flex items-center gap-1">
+                      {[3, 4, 6].map((cnt) => (
+                        <button
+                          key={cnt}
+                          onClick={() => setPreviewCount(cnt)}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: previewCount === cnt ? 700 : 500,
+                            padding: '4px 8px',
+                            borderRadius: 99,
+                            border: 'none',
+                            background: previewCount === cnt ? 'var(--brand-primary)' : 'rgba(255,255,255,0.1)',
+                            color: '#fff',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {cnt}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', paddingRight: 4, fontWeight: 500 }}>
+                      {t('camera.singleMode')}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -358,6 +515,7 @@ export function CameraView() {
 }
 
 function StartPrompt({ onStart }: { onStart: () => void }) {
+  const { t } = useAppContext();
   return (
     <div className="permission-screen">
       <div className="permission-icon-wrap">
@@ -365,24 +523,22 @@ function StartPrompt({ onStart }: { onStart: () => void }) {
       </div>
       <div>
         <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, marginBottom: 8 }}>
-          Ready to capture?
+          {t('camera.readyPrompt')}
         </h2>
         <p style={{ color: 'var(--text-secondary)', maxWidth: 340 }}>
-          Click below to start your webcam and take beautiful photos with LumiBooth.
+          {t('camera.readyDesc')}
         </p>
       </div>
       <button id="start-camera-prompt" className="btn btn-primary btn-xl" onClick={onStart}>
         <Camera size={20} />
-        Start Camera
+        {t('camera.startNow')}
       </button>
-      <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-        Your camera is only activated when you click Start. All processing is local — no uploads.
-      </p>
     </div>
   );
 }
 
 function PermissionError({ message, onRetry, isSecure }: { message: string | null; onRetry: () => void; isSecure: boolean }) {
+  const { t } = useAppContext();
   return (
     <div className="permission-screen">
       <div style={{
@@ -395,7 +551,7 @@ function PermissionError({ message, onRetry, isSecure }: { message: string | nul
       </div>
       <div>
         <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, marginBottom: 8, color: 'var(--color-error)' }}>
-          Camera Unavailable
+          {t('camera.errorTitle')}
         </h2>
         <p style={{ color: 'var(--text-secondary)', maxWidth: 380 }}>
           {message ?? 'Could not access the camera.'}
@@ -415,7 +571,7 @@ function PermissionError({ message, onRetry, isSecure }: { message: string | nul
       </div>
       <button className="btn btn-primary btn-lg" onClick={onRetry}>
         <RefreshCw size={16} />
-        Try Again
+        {t('camera.retry')}
       </button>
     </div>
   );

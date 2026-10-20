@@ -9,23 +9,23 @@ import { defaultExportOptions } from '@/types';
 
 const EMOJI_CATEGORIES = [
   {
-    name: '💖 Hearts',
+    nameKey: '💖 Hearts',
     items: ['💕', '💖', '💗', '💓', '💘', '❤️', '🤍', '💌', '🫶', '💝', '🌸', '🌹'],
   },
   {
-    name: '✨ Stars & Sparkles',
+    nameKey: '✨ Stars & Sparkles',
     items: ['✨', '🌟', '⭐', '💫', '🌠', '🌙', '☀️', '⚡', '🫧', '🪐', '🔮', '💎'],
   },
   {
-    name: '🎀 Cute & Y2K',
+    nameKey: '🎀 Cute & Y2K',
     items: ['🎀', '🍒', '🍓', '🧸', '🦋', '👑', '💿', '📷', '🎧', '🦄', '🎈', '🍭'],
   },
   {
-    name: '🎉 Celebration',
+    nameKey: '🎉 Celebration',
     items: ['🎉', '🎂', '🥂', '🍾', '🎁', '🥳', '🎊', '🎈', '🪄', '🕯️', '🍰', '🧁'],
   },
   {
-    name: '🥰 Mood & Faces',
+    nameKey: '🥰 Mood & Faces',
     items: ['🥰', '😍', '🤪', '🥺', '😎', '🥹', '🤭', '✌️', '🤙', '🫰', '😻', '🔥'],
   },
 ];
@@ -45,7 +45,7 @@ const COLOR_PRESETS = [
 ];
 
 export function ExportView() {
-  const { currentSession, editStates, selectedTemplate, setSelectedTemplate, decoration, setDecoration, toast, setView } = useAppContext();
+  const { currentSession, editStates, selectedTemplate, setSelectedTemplate, decoration, setDecoration, toast, setView, t } = useAppContext();
 
   const photos = currentSession?.photos ?? [];
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
@@ -137,17 +137,17 @@ export function ExportView() {
       const ext = exportOptions.format;
       const filename = `lumibooth_${selectedTemplate.id}_${Date.now()}.${ext}`;
       downloadDataUrl(dataUrl, filename);
-      toast('Photostrip downloaded!', 'success');
+      toast(t('export.downloadPhotostrip') + ' ✓', 'success');
     } catch (err) {
       toast('Export failed. Please try again.', 'error');
       console.error(err);
     }
     setIsRendering(false);
-  }, [selectedTemplate, photos, editStates, exportOptions, decoration, caption, showDate, toast]);
+  }, [selectedTemplate, photos, editStates, exportOptions, decoration, caption, showDate, toast, t]);
 
   const handleDownloadTimelapse = useCallback(() => {
     if (!currentSession?.timelapseUrl) {
-      toast('No timelapse video recorded for this session', 'info');
+      toast(t('export.noTimelapse'), 'info');
       return;
     }
     const a = document.createElement('a');
@@ -156,15 +156,15 @@ export function ExportView() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    toast('Timelapse video downloaded!', 'success');
-  }, [currentSession?.timelapseUrl, toast]);
+    toast(t('export.downloadTimelapse') + ' ✓', 'success');
+  }, [currentSession?.timelapseUrl, toast, t]);
 
   const handleExportAll = useCallback(async () => {
     if (!currentSession || photos.length === 0) return;
     try {
       toast('Creating ZIP file…', 'info');
-      await downloadAllAsZip(photos, currentSession.id, exportOptions.format, exportOptions.quality);
-      toast('All photos downloaded!', 'success');
+      await downloadAllAsZip(photos, currentSession.id, exportOptions.format, exportOptions.quality, currentSession.timelapseBlob);
+      toast('All photos & timelapse downloaded!', 'success');
     } catch {
       toast('ZIP export failed.', 'error');
     }
@@ -173,8 +173,8 @@ export function ExportView() {
   const handleExportSingle = useCallback((photo: typeof photos[0]) => {
     const filename = `lumibooth_${photo.index + 1}_${Date.now()}.${exportOptions.format}`;
     downloadDataUrl(photo.editedDataUrl ?? photo.dataUrl, filename);
-    toast(`Photo ${photo.index + 1} downloaded`, 'success');
-  }, [exportOptions, toast]);
+    toast(`${t('export.downloadSingle')} ${photo.index + 1} ✓`, 'success');
+  }, [exportOptions, toast, t]);
 
   // Layer manipulation helpers
   const handleAddEmoji = (emoji: string) => {
@@ -189,14 +189,15 @@ export function ExportView() {
       scale: 1,
       zIndex: decoration.layers.length + 1,
     };
-    setDecoration({ ...decoration, layers: [...decoration.layers, newLayer] });
+    setDecoration((prev: PhotostripDecoration) => ({
+      ...prev,
+      layers: [...prev.layers, newLayer],
+    }));
     setSelectedLayerId(newLayer.id);
-    toast('Added sticker! Drag it to position.', 'info');
   };
 
   const handleAddText = () => {
     if (!newTextContent.trim()) {
-      toast('Please enter some text', 'error');
       return;
     }
     const newLayer: TextLayer = {
@@ -215,14 +216,19 @@ export function ExportView() {
       scale: 1,
       zIndex: decoration.layers.length + 1,
     };
-    setDecoration({ ...decoration, layers: [...decoration.layers, newLayer] });
+    setDecoration((prev: PhotostripDecoration) => ({
+      ...prev,
+      layers: [...prev.layers, newLayer],
+    }));
     setSelectedLayerId(newLayer.id);
     setNewTextContent('');
-    toast('Added text! Drag it to position.', 'info');
   };
 
   const handleDeleteLayer = (id: string) => {
-    setDecoration({ ...decoration, layers: decoration.layers.filter((l) => l.id !== id) });
+    setDecoration((prev: PhotostripDecoration) => ({
+      ...prev,
+      layers: prev.layers.filter((l) => l.id !== id),
+    }));
     if (selectedLayerId === id) setSelectedLayerId(null);
   };
 
@@ -234,16 +240,19 @@ export function ExportView() {
       y: Math.min(0.9, layer.y + 0.05),
       zIndex: decoration.layers.length + 1,
     };
-    setDecoration({ ...decoration, layers: [...decoration.layers, dup] });
+    setDecoration((prev: PhotostripDecoration) => ({
+      ...prev,
+      layers: [...prev.layers, dup],
+    }));
     setSelectedLayerId(dup.id);
   };
 
   const handleUpdateSelectedLayer = (partial: Partial<Layer>) => {
     if (!selectedLayerId) return;
-    setDecoration({
-      ...decoration,
-      layers: decoration.layers.map((l) => (l.id === selectedLayerId ? ({ ...l, ...partial } as Layer) : l)),
-    });
+    setDecoration((prev: PhotostripDecoration) => ({
+      ...prev,
+      layers: prev.layers.map((l: Layer) => (l.id === selectedLayerId ? ({ ...l, ...partial } as Layer) : l)),
+    }));
   };
 
   // Pointer drag logic
@@ -295,9 +304,9 @@ export function ExportView() {
       <div className="flex h-full w-full items-center justify-center" style={{ flex: 1, width: '100%', height: '100%' }}>
         <div className="empty-state">
           <div className="empty-icon"><Download size={32} /></div>
-          <h3 style={{ fontWeight: 600 }}>Nothing to export</h3>
-          <p>Capture photos first to create your photostrip.</p>
-          <button className="btn btn-primary" onClick={() => setView('camera')}>Go to Camera</button>
+          <h3 style={{ fontWeight: 600 }}>{t('export.nothingToExport')}</h3>
+          <p>{t('export.nothingDesc')}</p>
+          <button className="btn btn-primary" onClick={() => setView('camera')}>{t('editor.goToCamera')}</button>
         </div>
       </div>
     );
@@ -310,30 +319,30 @@ export function ExportView() {
         {/* Tabs */}
         <div style={{ padding: '10px 10px 0' }}>
           <div className="tab-bar">
-            <button className={`tab-item ${activeTab === 'template' ? 'active' : ''}`} onClick={() => setActiveTab('template')} style={{ fontSize: 11 }}>Frames</button>
-            <button className={`tab-item ${activeTab === 'decoration' ? 'active' : ''}`} onClick={() => setActiveTab('decoration')} style={{ fontSize: 11 }}>Decorate</button>
-            <button className={`tab-item ${activeTab === 'single' ? 'active' : ''}`} onClick={() => setActiveTab('single')} style={{ fontSize: 11 }}>Singles</button>
-            <button className={`tab-item ${activeTab === 'timelapse' ? 'active' : ''}`} onClick={() => setActiveTab('timelapse')} style={{ fontSize: 11 }}>Timelapse</button>
+            <button className={`tab-item ${activeTab === 'template' ? 'active' : ''}`} onClick={() => setActiveTab('template')} style={{ fontSize: 11 }}>{t('export.framesTab')}</button>
+            <button className={`tab-item ${activeTab === 'decoration' ? 'active' : ''}`} onClick={() => setActiveTab('decoration')} style={{ fontSize: 11 }}>{t('export.decorateTab')}</button>
+            <button className={`tab-item ${activeTab === 'single' ? 'active' : ''}`} onClick={() => setActiveTab('single')} style={{ fontSize: 11 }}>{t('export.singlesTab')}</button>
+            <button className={`tab-item ${activeTab === 'timelapse' ? 'active' : ''}`} onClick={() => setActiveTab('timelapse')} style={{ fontSize: 11 }}>{t('export.timelapseTab')}</button>
           </div>
         </div>
 
         {/* Tab 1: Templates / Frames */}
         {activeTab === 'template' && (
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            <div className="section-header">Templates ({compatibleTemplates.length} match)</div>
+            <div className="section-header">{t('export.templatesMatch', { count: compatibleTemplates.length })}</div>
             {compatibleTemplates.length === 0 && (
               <div style={{ padding: '0 12px', fontSize: 12, color: 'var(--color-warning)' }}>
-                Showing all templates. Selected: {photos.length} photos.
+                {t('export.showingAll', { count: photos.length })}
               </div>
             )}
             <div style={{ padding: '0 10px 10px' }}>
               <div className="template-grid">
-                {allTemplates.map((t) => (
+                {allTemplates.map((tConfig) => (
                   <TemplateThumbnailCard
-                    key={t.id}
-                    template={t}
-                    selected={selectedTemplate?.id === t.id}
-                    onSelect={() => setSelectedTemplate(t)}
+                    key={tConfig.id}
+                    template={tConfig}
+                    selected={selectedTemplate?.id === tConfig.id}
+                    onSelect={() => setSelectedTemplate(tConfig)}
                   />
                 ))}
               </div>
@@ -342,10 +351,10 @@ export function ExportView() {
             {/* Template customization */}
             {selectedTemplate && (
               <>
-                <div className="section-header">Frame Colors</div>
+                <div className="section-header">{t('export.frameColors')}</div>
                 <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <label className="flex items-center justify-between" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    <span>Background color</span>
+                    <span>{t('export.bgColor')}</span>
                     <input
                       type="color"
                       value={selectedTemplate.backgroundColor}
@@ -354,7 +363,7 @@ export function ExportView() {
                     />
                   </label>
                   <label className="flex items-center justify-between" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    <span>Border color</span>
+                    <span>{t('export.borderColor')}</span>
                     <input
                       type="color"
                       value={selectedTemplate.borderColor && selectedTemplate.borderColor !== 'transparent' ? selectedTemplate.borderColor : '#e5e7eb'}
@@ -368,7 +377,7 @@ export function ExportView() {
                       checked={exportOptions.includeWatermark}
                       onChange={(e) => setExportOptions((o) => ({ ...o, includeWatermark: e.target.checked }))}
                     />
-                    Show watermark
+                    {t('export.showWatermark')}
                   </label>
                 </div>
               </>
@@ -382,39 +391,39 @@ export function ExportView() {
             {/* Header Hint */}
             <div style={{ padding: '8px 12px', background: 'var(--brand-glow)', borderRadius: 'var(--radius-md)', margin: '8px 12px 12px', fontSize: 12, color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
               <Sparkles size={16} />
-              <span>Click on any icon or text in the preview to drag & drop it!</span>
+              <span>{t('export.clickToDragHint')}</span>
             </div>
 
             {/* Caption & Date */}
-            <div className="section-header">Strip Header & Date</div>
+            <div className="section-header">{t('export.stripHeaderDate')}</div>
             <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <input
                 className="input"
-                placeholder="Add strip title (e.g. Besties 2026)…"
+                placeholder={t('export.stripTitlePlaceholder')}
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
               />
               <label className="flex items-center gap-2" style={{ fontSize: 12, cursor: 'pointer', color: 'var(--text-secondary)' }}>
                 <input type="checkbox" checked={showDate} onChange={(e) => setShowDate(e.target.checked)} />
-                Show date stamp ({new Date().toLocaleDateString()})
+                {t('export.showDateStamp', { date: new Date().toLocaleDateString() })}
               </label>
             </div>
 
             {/* Add Custom Text Layer */}
             <div className="section-header flex items-center gap-1">
-              <Type size={14} /> Add Text Layer
+              <Type size={14} /> {t('export.addTextLayer')}
             </div>
             <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div className="flex gap-2">
                 <input
                   className="input flex-1"
-                  placeholder="Type word or phrase…"
+                  placeholder={t('export.typeWordPlaceholder')}
                   value={newTextContent}
                   onChange={(e) => setNewTextContent(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddText(); }}
                 />
                 <button className="btn btn-primary" onClick={handleAddText} style={{ padding: '0 12px', fontSize: 12 }}>
-                  Add
+                  {t('export.addTextBtn')}
                 </button>
               </div>
 
@@ -478,7 +487,7 @@ export function ExportView() {
               {/* Font size */}
               <div className="slider-group" style={{ margin: '4px 0 0' }}>
                 <div className="slider-label-row">
-                  <span className="slider-label" style={{ fontSize: 11 }}>Font size</span>
+                  <span className="slider-label" style={{ fontSize: 11 }}>{t('export.fontSize')}</span>
                   <span className="slider-value" style={{ fontSize: 11 }}>{newTextSize}px</span>
                 </div>
                 <input
@@ -494,13 +503,13 @@ export function ExportView() {
 
             {/* Add Icons / Stickers / Emojis */}
             <div className="section-header flex items-center gap-1">
-              <Smile size={14} /> Stickers & Emojis
+              <Smile size={14} /> {t('export.stickersEmojis')}
             </div>
             <div style={{ padding: '0 12px 12px' }}>
               {EMOJI_CATEGORIES.map((cat) => (
-                <div key={cat.name} style={{ marginBottom: 10 }}>
+                <div key={cat.nameKey} style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 4 }}>
-                    {cat.name}
+                    {cat.nameKey}
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                     {cat.items.map((emoji) => (
@@ -540,14 +549,14 @@ export function ExportView() {
               }}>
                 <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand-primary)' }}>
-                    Selected: {selectedLayer.type === 'emoji' ? (selectedLayer as EmojiLayer).emoji : `"${(selectedLayer as TextLayer).content}"`}
+                    {t('export.selected')}: {selectedLayer.type === 'emoji' ? (selectedLayer as EmojiLayer).emoji : `"${(selectedLayer as TextLayer).content}"`}
                   </span>
                   <div className="flex gap-1">
                     <button
                       className="btn btn-icon btn-secondary"
                       style={{ width: 26, height: 26, padding: 0 }}
                       onClick={() => handleDuplicateLayer(selectedLayer)}
-                      title="Duplicate"
+                      title={t('export.duplicate')}
                     >
                       <Copy size={13} />
                     </button>
@@ -555,7 +564,7 @@ export function ExportView() {
                       className="btn btn-icon btn-danger"
                       style={{ width: 26, height: 26, padding: 0 }}
                       onClick={() => handleDeleteLayer(selectedLayer.id)}
-                      title="Delete"
+                      title={t('export.delete')}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -565,7 +574,7 @@ export function ExportView() {
                 {/* Scale slider */}
                 <div className="slider-group" style={{ margin: '4px 0' }}>
                   <div className="slider-label-row">
-                    <span className="slider-label" style={{ fontSize: 11 }}>Scale</span>
+                    <span className="slider-label" style={{ fontSize: 11 }}>{t('export.scale')}</span>
                     <span className="slider-value" style={{ fontSize: 11 }}>{Math.round(selectedLayer.scale * 100)}%</span>
                   </div>
                   <input
@@ -581,7 +590,7 @@ export function ExportView() {
                 {/* Rotation slider */}
                 <div className="slider-group" style={{ margin: '4px 0' }}>
                   <div className="slider-label-row">
-                    <span className="slider-label" style={{ fontSize: 11 }}>Rotation</span>
+                    <span className="slider-label" style={{ fontSize: 11 }}>{t('export.rotation')}</span>
                     <span className="slider-value" style={{ fontSize: 11 }}>{selectedLayer.rotation}°</span>
                   </div>
                   <input
@@ -629,14 +638,14 @@ export function ExportView() {
               <div style={{ padding: '0 12px' }}>
                 <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    Layers ({decoration.layers.length})
+                    {t('export.layersCount', { count: decoration.layers.length })}
                   </span>
                   <button
                     className="btn btn-secondary"
                     style={{ fontSize: 11, padding: '2px 8px' }}
-                    onClick={() => { setDecoration({ ...decoration, layers: [] }); setSelectedLayerId(null); }}
+                    onClick={() => { setDecoration((prev: PhotostripDecoration) => ({ ...prev, layers: [] })); setSelectedLayerId(null); }}
                   >
-                    Clear All
+                    {t('export.clearAll')}
                   </button>
                 </div>
               </div>
@@ -647,13 +656,13 @@ export function ExportView() {
         {/* Tab 3: Singles */}
         {activeTab === 'single' && (
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            <div className="section-header">Individual Photos ({photos.length})</div>
+            <div className="section-header">{t('export.individualPhotos', { count: photos.length })}</div>
             <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
               {photos.map((photo, i) => (
                 <div key={photo.id} className="flex items-center gap-2" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-md)', padding: 8, border: '1px solid var(--border-subtle)' }}>
                   <img src={photo.editedDataUrl ?? photo.dataUrl} alt={`Photo ${i + 1}`} style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
                   <span style={{ flex: 1, fontSize: 13, color: 'var(--text-secondary)' }}>Photo {i + 1}</span>
-                  <button className="btn btn-icon btn-secondary" onClick={() => handleExportSingle(photo)} title="Download photo">
+                  <button className="btn btn-icon btn-secondary" onClick={() => handleExportSingle(photo)} title={t('export.downloadSingle')}>
                     <Download size={14} />
                   </button>
                 </div>
@@ -661,7 +670,7 @@ export function ExportView() {
             </div>
             <div style={{ padding: '0 12px 12px' }}>
               <button className="btn btn-secondary w-full" onClick={handleExportAll}>
-                📦 Download All as ZIP
+                {t('export.downloadAllZip')}
               </button>
             </div>
           </div>
@@ -670,7 +679,7 @@ export function ExportView() {
         {/* Tab 4: Timelapse Video */}
         {activeTab === 'timelapse' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-            <div className="section-header" style={{ padding: 0, marginBottom: 8 }}>🎬 Timelapse Recording</div>
+            <div className="section-header" style={{ padding: 0, marginBottom: 8 }}>{t('export.timelapseSection')}</div>
             {currentSession?.timelapseUrl ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{
@@ -689,7 +698,7 @@ export function ExportView() {
                   />
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  ✨ Your photobooth session was automatically recorded as a behind-the-scenes timelapse video!
+                  {t('export.timelapseDesc')}
                 </div>
                 <button
                   className="btn btn-primary w-full"
@@ -697,7 +706,7 @@ export function ExportView() {
                   style={{ gap: 8, padding: '10px 16px' }}
                 >
                   <Download size={16} />
-                  Download Timelapse Video (.webm)
+                  {t('export.downloadTimelapseBtn')}
                 </button>
               </div>
             ) : (
@@ -710,12 +719,12 @@ export function ExportView() {
                 color: 'var(--text-secondary)',
               }}>
                 <Video size={36} style={{ margin: '0 auto 12px', opacity: 0.6 }} />
-                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>No Timelapse Recorded</div>
+                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{t('export.noTimelapse')}</div>
                 <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 14 }}>
-                  Timelapse is automatically recorded when you take photos with the camera live. Take another session to get your timelapse!
+                  {t('export.noTimelapseDesc')}
                 </div>
                 <button className="btn btn-secondary btn-sm" onClick={() => setView('camera')}>
-                  Go to Camera
+                  {t('editor.goToCamera')}
                 </button>
               </div>
             )}
@@ -724,7 +733,7 @@ export function ExportView() {
 
         {/* Export format options */}
         <div className="section-header" style={{ marginTop: 'auto', borderTop: '1px solid var(--border-subtle)' }}>
-          Export Format
+          {t('export.exportFormat')}
         </div>
         <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div className="chip-group">
@@ -741,7 +750,7 @@ export function ExportView() {
           {exportOptions.format !== 'png' && (
             <div className="slider-group">
               <div className="slider-label-row">
-                <span className="slider-label">Quality</span>
+                <span className="slider-label">{t('export.quality')}</span>
                 <span className="slider-value">{Math.round(exportOptions.quality * 100)}%</span>
               </div>
               <input
@@ -795,7 +804,7 @@ export function ExportView() {
           </h2>
           {decoration.layers.length > 0 && (
             <div className="badge badge-active" style={{ fontSize: 11 }}>
-              {decoration.layers.length} sticker{decoration.layers.length !== 1 ? 's' : ''} placed
+              {t('export.placedBadge', { count: decoration.layers.length })}
             </div>
           )}
         </div>
@@ -910,7 +919,7 @@ export function ExportView() {
             margin: 'auto',
           }}>
             <div className="spinner" style={{ width: 32, height: 32 }} />
-            <span style={{ fontSize: 13 }}>Rendering photostrip…</span>
+            <span style={{ fontSize: 13 }}>{t('export.renderingPhotostrip')}</span>
           </div>
         )}
 
@@ -924,20 +933,21 @@ export function ExportView() {
             style={{ minWidth: 220 }}
           >
             {isRendering ? (
-              <><div className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />Exporting…</>
+              <><div className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> {t('export.exporting')}</>
             ) : (
-              <><Download size={20} />Download Photostrip</>
+              <><Download size={20} /> {t('export.downloadPhotostrip')}</>
             )}
           </button>
 
           {currentSession?.timelapseUrl && (
             <button
+              id="export-timelapse-btn"
               className="btn btn-secondary btn-xl"
               onClick={handleDownloadTimelapse}
               style={{ gap: 8 }}
             >
               <Video size={18} />
-              Download Timelapse
+              {t('export.downloadTimelapse')}
             </button>
           )}
         </div>

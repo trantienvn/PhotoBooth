@@ -34,7 +34,7 @@ function SliderRow({ label, value, min, max, onChange }: SliderRowProps) {
 }
 
 export function PhotoEditor() {
-  const { currentSession, editStates, setEditState, setView } = useAppContext();
+  const { currentSession, editStates, setEditState, setView, t } = useAppContext();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [applyToAll, setApplyToAll] = useState(false);
@@ -119,21 +119,36 @@ export function PhotoEditor() {
       <div className="flex h-full w-full items-center justify-center" style={{ flex: 1, width: '100%', height: '100%' }}>
         <div className="empty-state">
           <div className="empty-icon"><Sliders size={32} /></div>
-          <h3 style={{ fontWeight: 600 }}>No photos to edit</h3>
-          <p>Capture photos first in the Camera view.</p>
+          <h3 style={{ fontWeight: 600 }}>{t('editor.noPhotos')}</h3>
+          <p>{t('editor.noPhotosDesc')}</p>
           <button className="btn btn-primary" onClick={() => setView('camera')}>
-            Go to Camera
+            {t('editor.goToCamera')}
           </button>
         </div>
       </div>
     );
   }
 
+  const filterNames: Record<keyof FilterSettings, string> = {
+    brightness: t('editor.brightness'),
+    contrast: t('editor.contrast'),
+    saturation: t('editor.saturation'),
+    warmth: t('editor.warmth'),
+    tint: t('editor.tint'),
+    vignette: t('editor.vignette'),
+    sharpness: t('editor.sharpness'),
+    grain: t('editor.grain'),
+    exposure: 'Exposure',
+    highlights: 'Highlights',
+    shadows: 'Shadows',
+    fade: 'Fade',
+  };
+
   return (
     <div className="flex h-full w-full" style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
       {/* Left: Photo list + controls */}
       <div className="app-sidebar" style={{ width: 280, minWidth: 280, flexShrink: 0 }}>
-        <div className="section-header">Photos</div>
+        <div className="section-header">{t('editor.photos')}</div>
         <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {photos.map((photo, i) => (
             <div
@@ -160,25 +175,25 @@ export function PhotoEditor() {
               checked={applyToAll}
               onChange={(e) => setApplyToAll(e.target.checked)}
             />
-            Apply to all photos
+            {t('editor.applyToAll')}
           </label>
         </div>
 
         {/* Filter actions */}
         <div style={{ padding: '0 12px 12px', display: 'flex', gap: 6 }}>
           <button className="btn btn-secondary flex-1" style={{ fontSize: 12 }} onClick={resetEdit}>
-            <RotateCcw size={14} /> Reset
+            <RotateCcw size={14} /> {t('editor.reset')}
           </button>
           <button className="btn btn-secondary flex-1" style={{ fontSize: 12 }} onClick={rotatePhoto}>
-            <RotateCcw size={14} style={{ transform: 'scaleX(-1)' }} /> Rotate
+            <RotateCcw size={14} style={{ transform: 'scaleX(-1)' }} /> {t('editor.rotate')}
           </button>
           <button className="btn btn-secondary flex-1" style={{ fontSize: 12 }} onClick={flipPhoto}>
-            <FlipHorizontal size={14} /> Flip
+            <FlipHorizontal size={14} /> {t('editor.flip')}
           </button>
         </div>
 
         {/* Filter presets */}
-        <div className="section-header">Presets</div>
+        <div className="section-header">{t('editor.presets')}</div>
         <div style={{ padding: '0 12px 12px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
           {filterPresets.map((preset) => (
             <button
@@ -202,12 +217,12 @@ export function PhotoEditor() {
         </div>
 
         {/* Manual adjustments */}
-        <div className="section-header">Adjustments</div>
+        <div className="section-header">{t('editor.filters')}</div>
         <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 16 }}>
           {(Object.keys(defaultFilterSettings) as (keyof FilterSettings)[]).map((key) => (
             <SliderRow
               key={key}
-              label={key.charAt(0).toUpperCase() + key.slice(1)}
+              label={filterNames[key] || (key.charAt(0).toUpperCase() + key.slice(1))}
               value={currentEdit.filter[key]}
               min={key === 'fade' || key === 'vignette' || key === 'grain' || key === 'sharpness' ? 0 : -100}
               max={100}
@@ -237,7 +252,7 @@ export function PhotoEditor() {
             <ArrowLeft size={18} />
           </button>
           <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-            Photo {photos.indexOf(selectedPhoto!) + 1} / {photos.length}
+            {photos.indexOf(selectedPhoto!) + 1} / {photos.length}
           </span>
           <button className="btn btn-icon btn-secondary" onClick={goNext} disabled={photos.indexOf(selectedPhoto!) >= photos.length - 1}>
             <ArrowRight size={18} />
@@ -245,8 +260,8 @@ export function PhotoEditor() {
           <button
             className={`btn btn-icon ${compareMode ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setCompareMode((v) => !v)}
-            title="Compare before/after"
-            aria-label="Toggle before/after comparison"
+            title={t('editor.compare')}
+            aria-label={t('editor.compare')}
           >
             {compareMode ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
@@ -268,6 +283,8 @@ export function PhotoEditor() {
               photo={selectedPhoto}
               editState={currentEdit}
               compareMode={compareMode}
+              beforeLabel={t('editor.before')}
+              afterLabel={t('editor.after')}
             />
           </div>
         )}
@@ -279,7 +296,7 @@ export function PhotoEditor() {
           onClick={() => setView('export')}
           style={{ marginTop: 8 }}
         >
-          Continue to Export →
+          {t('editor.continueToExport')}
         </button>
       </div>
     </div>
@@ -290,10 +307,14 @@ function FilteredPreview({
   photo,
   editState,
   compareMode,
+  beforeLabel,
+  afterLabel,
 }: {
   photo: Photo;
   editState: PhotoEditState;
   compareMode: boolean;
+  beforeLabel: string;
+  afterLabel: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -311,7 +332,6 @@ function FilteredPreview({
       const filtered = applyFiltersToCanvas(img, editState.filter, canvas.width, canvas.height);
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Apply rotation/flip
         ctx.save();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const cx = canvas.width / 2;
@@ -381,7 +401,7 @@ function FilteredPreview({
             background: 'rgba(0,0,0,0.5)',
             padding: '2px 8px',
             borderRadius: 99,
-          }}>Before</div>
+          }}>{beforeLabel}</div>
           <div style={{
             position: 'absolute',
             bottom: 8,
@@ -393,7 +413,7 @@ function FilteredPreview({
             background: 'rgba(0,0,0,0.5)',
             padding: '2px 8px',
             borderRadius: 99,
-          }}>After</div>
+          }}>{afterLabel}</div>
         </>
       )}
     </div>

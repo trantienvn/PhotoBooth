@@ -74,6 +74,27 @@ export const defaultFilterSettings: FilterSettings = {
   sharpness: 0,
 };
 
+// --- Live Beauty & Retouch Settings ---
+export interface BeautySettings {
+  enabled: boolean;
+  smooth: number;       // 0 to 100 (làm mịn da / blur micro-imperfections)
+  rosyGlow: number;     // 0 to 100 (sắc hồng hào tự nhiên)
+  brighten: number;     // 0 to 100 (làm sáng da)
+  contrast: number;     // -50 to 50 (độ tương phản)
+  warmth: number;       // -50 to 50 (tông da ấm / lạnh)
+  presetId?: 'off' | 'natural' | 'rosy' | 'porcelain' | 'korean';
+}
+
+export const defaultBeautySettings: BeautySettings = {
+  enabled: false,
+  smooth: 0,
+  rosyGlow: 0,
+  brighten: 0,
+  contrast: 0,
+  warmth: 0,
+  presetId: 'off',
+};
+
 export type FilterPresetName =
   | 'original'
   | 'natural'
@@ -283,7 +304,7 @@ export interface AppSettings {
   autoTimelapse: boolean;
   theme: 'light' | 'dark' | 'system';
   showWatermark: boolean;
-  language: string;
+  language: 'vi' | 'en';
 }
 
 export const defaultAppSettings: AppSettings = {
@@ -296,7 +317,7 @@ export const defaultAppSettings: AppSettings = {
   autoTimelapse: true,
   theme: 'system',
   showWatermark: true,
-  language: 'en',
+  language: 'vi',
 };
 
 // --- Editor State ---

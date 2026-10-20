@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import type { AppSettings, CaptureSession, PhotoEditState, TemplateConfig, PhotostripDecoration } from '@/types';
 import { defaultAppSettings, defaultDecoration } from '@/types';
 import { loadSettings, saveSettings } from '@/services/storage.service';
+import { translate, type SupportedLanguage } from '@/services/i18n.service';
 
 export type AppView = 'camera' | 'gallery' | 'editor' | 'export' | 'settings';
 
@@ -9,6 +10,10 @@ interface AppContextValue {
   // Settings
   settings: AppSettings;
   updateSettings: (partial: Partial<AppSettings>) => void;
+  // Language / i18n
+  language: SupportedLanguage;
+  setLanguage: (lang: SupportedLanguage) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
   // Theme
   theme: 'light' | 'dark';
   toggleTheme: () => void;
@@ -43,6 +48,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultAppSettings);
+  const [language, setLanguageState] = useState<SupportedLanguage>('vi');
   const [currentView, setCurrentView] = useState<AppView>('camera');
   const [currentSession, setCurrentSession] = useState<CaptureSession | null>(null);
   const [editStates, setEditStates] = useState<Map<string, PhotoEditState>>(new Map());
@@ -55,6 +61,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadSettings().then((s) => {
       setSettings(s);
+      if (s.language === 'vi' || s.language === 'en') {
+        setLanguageState(s.language);
+      }
       const resolved =
         s.theme === 'system'
           ? window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -75,6 +84,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+
+  const setLanguage = useCallback((lang: SupportedLanguage) => {
+    setLanguageState(lang);
+    updateSettings({ language: lang });
+  }, [updateSettings]);
+
+  const t = useCallback((key: string, params?: Record<string, string | number>) => {
+    return translate(language, key, params);
+  }, [language]);
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
@@ -110,6 +128,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         settings,
         updateSettings,
+        language,
+        setLanguage,
+        t,
         theme,
         toggleTheme,
         currentSession,

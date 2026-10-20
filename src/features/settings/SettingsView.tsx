@@ -7,7 +7,7 @@ import type { Resolution } from '@/types';
 import { formatBytes } from '@/services/export.service';
 
 export function SettingsView() {
-  const { settings, updateSettings, theme, toggleTheme, toast } = useAppContext();
+  const { settings, updateSettings, theme, toggleTheme, toast, language, setLanguage, t } = useAppContext();
   const [storageUsed, setStorageUsed] = useState<string | null>(null);
   const [storageQuota, setStorageQuota] = useState<string | null>(null);
 
@@ -21,25 +21,71 @@ export function SettingsView() {
   }, []);
 
   const handleClearData = async () => {
-    if (!confirm('Delete all saved sessions and photos? This cannot be undone.')) return;
+    if (!confirm(t('settings.clearConfirm'))) return;
     await clearAllData();
-    toast('All local data cleared.', 'success');
+    toast(t('settings.clearedSuccess'), 'success');
   };
 
   const handleResetSettings = () => {
+    if (!confirm(t('settings.resetConfirm'))) return;
     updateSettings(defaultAppSettings);
-    toast('Settings reset to defaults.', 'info');
+    setLanguage('vi');
+    toast(t('settings.resetSuccess'), 'info');
   };
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px', maxWidth: 680, margin: '0 auto', width: '100%' }}>
       <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, marginBottom: 32 }}>
-        ⚙️ Settings
+        ⚙️ {t('settings.title')}
       </h1>
 
+      {/* Appearance & Language */}
+      <SettingSection title={t('settings.appearanceSection')}>
+        <SettingRow label={t('settings.language')}>
+          <div className="chip-group">
+            <button
+              className={`chip ${language === 'vi' ? 'active' : ''}`}
+              onClick={() => setLanguage('vi')}
+              style={{ fontWeight: language === 'vi' ? 700 : 500 }}
+            >
+              {t('settings.langVi')}
+            </button>
+            <button
+              className={`chip ${language === 'en' ? 'active' : ''}`}
+              onClick={() => setLanguage('en')}
+              style={{ fontWeight: language === 'en' ? 700 : 500 }}
+            >
+              {t('settings.langEn')}
+            </button>
+          </div>
+        </SettingRow>
+        <SettingRow label={t('settings.theme')}>
+          <div className="chip-group">
+            <button
+              className={`chip ${theme === 'light' ? 'active' : ''}`}
+              onClick={() => { if (theme !== 'light') toggleTheme(); }}
+            >
+              {t('settings.lightTheme')}
+            </button>
+            <button
+              className={`chip ${theme === 'dark' ? 'active' : ''}`}
+              onClick={() => { if (theme !== 'dark') toggleTheme(); }}
+            >
+              {t('settings.darkTheme')}
+            </button>
+          </div>
+        </SettingRow>
+        <SettingRow label={t('export.showWatermark')}>
+          <Toggle
+            checked={settings.showWatermark}
+            onChange={(v) => updateSettings({ showWatermark: v })}
+          />
+        </SettingRow>
+      </SettingSection>
+
       {/* Camera */}
-      <SettingSection title="📷 Camera">
-        <SettingRow label="Default resolution">
+      <SettingSection title={t('settings.cameraSection')}>
+        <SettingRow label={t('settings.defaultRes')}>
           <div className="chip-group">
             {(['480p', '720p', '1080p', 'best'] as Resolution[]).map((r) => (
               <button
@@ -52,19 +98,19 @@ export function SettingsView() {
             ))}
           </div>
         </SettingRow>
-        <SettingRow label="Mirror preview">
+        <SettingRow label={t('settings.mirrorPreview')}>
           <Toggle
             checked={settings.camera.mirror}
             onChange={(v) => updateSettings({ camera: { ...settings.camera, mirror: v } })}
           />
         </SettingRow>
-        <SettingRow label="Show grid overlay">
+        <SettingRow label={t('settings.showGrid')}>
           <Toggle
             checked={settings.camera.showGrid}
             onChange={(v) => updateSettings({ camera: { ...settings.camera, showGrid: v } })}
           />
         </SettingRow>
-        <SettingRow label="Mirror capture (saved photo)">
+        <SettingRow label={t('settings.mirrorCapture')}>
           <Toggle
             checked={settings.mirrorCapture}
             onChange={(v) => updateSettings({ mirrorCapture: v })}
@@ -73,8 +119,8 @@ export function SettingsView() {
       </SettingSection>
 
       {/* Capture */}
-      <SettingSection title="📸 Capture">
-        <SettingRow label="Countdown duration">
+      <SettingSection title={t('settings.captureSection')}>
+        <SettingRow label={t('settings.countdown')}>
           <div className="chip-group">
             {[0, 3, 5, 10].map((s) => (
               <button
@@ -82,12 +128,12 @@ export function SettingsView() {
                 className={`chip ${settings.countdownSeconds === s ? 'active' : ''}`}
                 onClick={() => updateSettings({ countdownSeconds: s })}
               >
-                {s === 0 ? 'Off' : `${s}s`}
+                {s === 0 ? t('settings.countdownOff') : `${s}s`}
               </button>
             ))}
           </div>
         </SettingRow>
-        <SettingRow label="Default photo count">
+        <SettingRow label={t('settings.defaultPhotoCount')}>
           <div className="chip-group">
             {[3, 4, 5, 6, 8, 9, 12].map((n) => (
               <button
@@ -100,7 +146,7 @@ export function SettingsView() {
             ))}
           </div>
         </SettingRow>
-        <SettingRow label="Delay between shots">
+        <SettingRow label={t('settings.delayBetweenShots')}>
           <div className="chip-group">
             {[500, 1000, 1500, 2000, 3000].map((ms) => (
               <button
@@ -113,13 +159,13 @@ export function SettingsView() {
             ))}
           </div>
         </SettingRow>
-        <SettingRow label="Sound effects">
+        <SettingRow label={t('settings.soundEffects')}>
           <Toggle
             checked={settings.soundEnabled}
             onChange={(v) => updateSettings({ soundEnabled: v })}
           />
         </SettingRow>
-        <SettingRow label="Auto timelapse recording">
+        <SettingRow label={t('settings.autoTimelapse')}>
           <Toggle
             checked={settings.autoTimelapse}
             onChange={(v) => updateSettings({ autoTimelapse: v })}
@@ -127,65 +173,35 @@ export function SettingsView() {
         </SettingRow>
       </SettingSection>
 
-      {/* Appearance */}
-      <SettingSection title="🎨 Appearance">
-        <SettingRow label="Theme">
-          <div className="chip-group">
-            <button
-              className={`chip ${theme === 'light' ? 'active' : ''}`}
-              onClick={() => { if (theme !== 'light') toggleTheme(); }}
-            >
-              ☀️ Light
-            </button>
-            <button
-              className={`chip ${theme === 'dark' ? 'active' : ''}`}
-              onClick={() => { if (theme !== 'dark') toggleTheme(); }}
-            >
-              🌙 Dark
-            </button>
-          </div>
-        </SettingRow>
-        <SettingRow label="Show watermark on exports">
-          <Toggle
-            checked={settings.showWatermark}
-            onChange={(v) => updateSettings({ showWatermark: v })}
-          />
-        </SettingRow>
-      </SettingSection>
-
       {/* Storage */}
-      <SettingSection title="💾 Storage & Privacy" padded>
+      <SettingSection title={t('settings.storageSection')} padded>
         {storageUsed && (
           <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
-            Storage used: <strong>{storageUsed}</strong> of {storageQuota}
+            {t('settings.storageUsed')}: <strong>{storageUsed}</strong> / {storageQuota}
           </div>
         )}
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-          All your photos and videos are stored locally in your browser's IndexedDB. They are never uploaded to any server.
-          LumiBooth does not collect any personal data.
+          {t('settings.storageDesc')}
         </div>
         <div className="flex gap-3">
           <button className="btn btn-danger" onClick={handleClearData}>
             <Trash2 size={15} />
-            Clear All Data
+            {t('settings.clearAllData')}
           </button>
           <button className="btn btn-secondary" onClick={handleResetSettings}>
             <RotateCcw size={15} />
-            Reset Settings
+            {t('settings.resetSettings')}
           </button>
         </div>
       </SettingSection>
 
       {/* About */}
-      <SettingSection title="ℹ️ About" padded>
+      <SettingSection title="ℹ️ LumiBooth" padded>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-          <p><strong>LumiBooth</strong> v1.0.0</p>
-          <p>A browser-based photobooth application built with React + TypeScript + Vite.</p>
+          <p><strong>LumiBooth</strong> v1.0.0 — Modern Photobooth Web Application</p>
+          <p>React + TypeScript + Vite | IndexedDB Offline Storage</p>
           <p style={{ marginTop: 8 }}>
-            Supported browsers: Chrome, Edge (full), Firefox (partial), Safari (partial).
-          </p>
-          <p style={{ marginTop: 8 }}>
-            Note: Camera access requires HTTPS or localhost. MediaRecorder for video recording uses WebM format in most browsers.
+            Camera, timelapse video recording, vintage filter presets, sticker drag & drop, and high-res export.
           </p>
         </div>
       </SettingSection>

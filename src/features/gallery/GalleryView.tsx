@@ -5,7 +5,7 @@ import { getAllSessions, deleteSession } from '@/services/storage.service';
 import type { CaptureSession } from '@/types';
 
 export function GalleryView() {
-  const { setCurrentSession, setView, toast } = useAppContext();
+  const { setCurrentSession, setView, toast, t } = useAppContext();
   const [sessions, setSessions] = useState<CaptureSession[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,7 +24,7 @@ export function GalleryView() {
   };
 
   const handleDeleteSession = async (id: string) => {
-    if (!confirm('Delete this session and all its photos?')) return;
+    if (!confirm(t('gallery.deleteConfirm'))) return;
     await deleteSession(id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
     toast('Session deleted.', 'info');
@@ -64,9 +64,9 @@ export function GalleryView() {
       <div className="flex h-full w-full items-center justify-center" style={{ flex: 1, width: '100%', height: '100%' }}>
         <div className="empty-state">
           <div className="empty-icon"><Images size={32} /></div>
-          <h3 style={{ fontWeight: 600 }}>No saved sessions</h3>
-          <p>Take some photos and they'll appear here.</p>
-          <button className="btn btn-primary" onClick={() => setView('camera')}>Go to Camera</button>
+          <h3 style={{ fontWeight: 600 }}>{t('gallery.noSavedSessions')}</h3>
+          <p>{t('gallery.takePhotosHint')}</p>
+          <button className="btn btn-primary" onClick={() => setView('camera')}>{t('gallery.goToCamera')}</button>
         </div>
       </div>
     );
@@ -77,20 +77,20 @@ export function GalleryView() {
       <div className="flex items-center justify-between" style={{ marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28 }}>
-            🖼️ Gallery
+            🖼️ {t('gallery.title')}
           </h1>
           <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 2 }}>
-            {sessions.length} session{sessions.length !== 1 ? 's' : ''} saved locally
+            {t('gallery.savedCount', { count: sessions.length })}
           </div>
         </div>
         <div className="flex items-center gap-2">
           {emptySessions.length > 0 && (
             <button className="btn btn-secondary" onClick={handleCleanEmptySessions} style={{ color: 'var(--color-danger)' }}>
-              <Trash2 size={14} /> Clear {emptySessions.length} Empty
+              <Trash2 size={14} /> {t('gallery.clearEmpty', { count: emptySessions.length })}
             </button>
           )}
           <button className="btn btn-secondary" onClick={loadSessions}>
-            <RefreshCw size={15} /> Refresh
+            <RefreshCw size={15} /> {t('gallery.refresh')}
           </button>
         </div>
       </div>
@@ -103,6 +103,7 @@ export function GalleryView() {
             onOpen={() => handleOpenSession(session)}
             onDelete={() => handleDeleteSession(session.id)}
             onDownloadVideo={() => handleDownloadVideo(session)}
+            t={t}
           />
         ))}
       </div>
@@ -115,11 +116,13 @@ function SessionCard({
   onOpen,
   onDelete,
   onDownloadVideo,
+  t,
 }: {
   session: CaptureSession;
   onOpen: () => void;
   onDelete: () => void;
   onDownloadVideo: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   const date = new Date(session.createdAt).toLocaleString();
   const thumbPhotos = session.photos.slice(0, 4);
@@ -153,7 +156,7 @@ function SessionCard({
         ))}
         {thumbPhotos.length === 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717a', fontSize: 13 }}>
-            No photos taken
+            {t('gallery.noPhotosTaken')}
           </div>
         )}
       </div>
@@ -162,13 +165,13 @@ function SessionCard({
       <div style={{ padding: '12px 16px' }}>
         <div className="flex items-center justify-between">
           <div style={{ fontSize: 13, fontWeight: 600 }}>
-            {session.photos.length} photo{session.photos.length !== 1 ? 's' : ''}
+            {t('gallery.photoCount', { count: session.photos.length })}
             {' · '}
             <span style={{ color: 'var(--text-tertiary)', textTransform: 'capitalize' }}>{session.mode}</span>
           </div>
           {session.timelapseUrl && (
             <span className="badge badge-active" style={{ fontSize: 10, padding: '2px 6px' }}>
-              🎬 Video
+              🎬 {t('gallery.video')}
             </span>
           )}
         </div>
@@ -179,21 +182,21 @@ function SessionCard({
       <div className="flex" style={{ borderTop: '1px solid var(--border-subtle)', padding: 8, gap: 6 }}>
         {session.photos.length > 0 ? (
           <button className="btn btn-primary flex-1" style={{ fontSize: 13 }} onClick={onOpen}>
-            <ExternalLink size={14} /> Open
+            <ExternalLink size={14} /> {t('gallery.open')}
           </button>
         ) : (
           <div style={{ flex: 1, fontSize: 12, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center' }}>
-            Empty session
+            {t('gallery.emptySession')}
           </div>
         )}
 
         {session.timelapseUrl && (
           <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={onDownloadVideo} title="Download timelapse video">
-            <Video size={13} /> Video
+            <Video size={13} /> {t('gallery.video')}
           </button>
         )}
 
-        <button className="btn btn-danger btn-icon" onClick={onDelete} aria-label="Delete session" title="Delete">
+        <button className="btn btn-danger btn-icon" onClick={onDelete} aria-label={t('gallery.delete')} title={t('gallery.delete')}>
           <Trash2 size={14} />
         </button>
       </div>
