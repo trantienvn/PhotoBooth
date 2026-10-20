@@ -1,4 +1,4 @@
-import type { TemplateConfig, Photo, PhotoEditState, ExportOptions, Layer, TextLayer, EmojiLayer, PhotostripDecoration } from '@/types';
+import type { TemplateConfig, Photo, PhotoEditState, ExportOptions, PhotostripDecoration, Layer, TextLayer, EmojiLayer } from '@/types';
 import { applyFiltersToCanvas } from './image-processing.service';
 
 export interface RenderResult {

@@ -46,12 +46,11 @@ export async function downloadAllAsZip(
   photos: Photo[],
   sessionId: string,
   format: ExportFormat = 'jpeg',
-  quality = 0.92,
+  _quality = 0.92,
 ): Promise<void> {
   try {
     const JSZip = (await import('jszip')).default;
     const zip = new JSZip();
-    const mimeType = getMimeType(format);
     const ext = format;
 
     for (const photo of photos) {

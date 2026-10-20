@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { AppSettings, CaptureSession, Photo, PhotoEditState, TemplateConfig, PhotostripDecoration } from '@/types';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import type { AppSettings, CaptureSession, PhotoEditState, TemplateConfig, PhotostripDecoration } from '@/types';
 import { defaultAppSettings, defaultDecoration } from '@/types';
 import { loadSettings } from '@/services/storage.service';
 
@@ -41,7 +41,7 @@ export interface ToastItem {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
+export function AppProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultAppSettings);
   const [currentView, setCurrentView] = useState<AppView>('camera');
   const [currentSession, setCurrentSession] = useState<CaptureSession | null>(null);

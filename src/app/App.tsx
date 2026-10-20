@@ -1,4 +1,3 @@
-import React from 'react';
 import { AppProvider, useAppContext } from './AppContext';
 import { Header } from '@/components/Header';
 import { ToastContainer } from '@/components/ToastContainer';

@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Download, Image, FileVideo, Palette, Type, Sticker, Eye, Loader, Archive } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Download } from 'lucide-react';
 import { useAppContext } from '@/app/AppContext';
 import { templates, getCompatibleTemplates } from '@/services/templates.service';
 import { renderTemplate, renderTemplateThumbnail } from '@/services/template-renderer.service';
 import { downloadDataUrl, downloadAllAsZip, isWebPSupported } from '@/services/export.service';
-import type { ExportOptions, TemplateConfig, ExportFormat, PhotostripDecoration } from '@/types';
+import type { ExportOptions, ExportFormat, PhotostripDecoration, TemplateConfig } from '@/types';
 import { defaultExportOptions } from '@/types';
 
 export function ExportView() {

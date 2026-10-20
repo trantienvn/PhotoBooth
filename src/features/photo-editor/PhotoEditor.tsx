@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sliders, RotateCcw, FlipHorizontal, ZoomIn, ArrowLeft, ArrowRight, Copy, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Sliders, RotateCcw, FlipHorizontal, ArrowLeft, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useAppContext } from '@/app/AppContext';
 import type { Photo, PhotoEditState, FilterSettings, FilterPresetName } from '@/types';
 import { defaultPhotoEditState, defaultFilterSettings } from '@/types';
@@ -34,12 +34,10 @@ function SliderRow({ label, value, min, max, onChange }: SliderRowProps) {
 }
 
 export function PhotoEditor() {
-  const { currentSession, editStates, setEditState, setView, toast } = useAppContext();
+  const { currentSession, editStates, setEditState, setView } = useAppContext();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [applyToAll, setApplyToAll] = useState(false);
-  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const previewImgRef = useRef<HTMLImageElement | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
 
   const photos = currentSession?.photos ?? [];

@@ -1,14 +1,14 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import {
-  Camera, CameraOff, RefreshCw, Video, VideoOff, Pause, Play,
-  Grid, FlipHorizontal, Zap, ZapOff, ChevronDown, ChevronUp, AlertTriangle
+  Camera, CameraOff, RefreshCw,
+  Grid, FlipHorizontal, ChevronDown, ChevronUp, AlertTriangle
 } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { useCaptureSession } from '@/hooks/useCaptureSession';
 import { useTimelapse } from '@/hooks/useTimelapse';
 import { useAppContext } from '@/app/AppContext';
 import type { CaptureMode } from '@/types';
-import { formatDuration, formatBytes } from '@/services/export.service';
+import { formatDuration } from '@/services/export.service';
 import { CaptureControls } from '@/features/capture/CaptureControls';
 import { ThumbnailStrip } from '@/features/capture/ThumbnailStrip';
 
@@ -16,7 +16,6 @@ export function CameraView() {
   const { settings, updateSettings, setCurrentSession, setView, toast } = useAppContext();
   const camera = useCamera();
   const capture = useCaptureSession();
-  const [cameraStarted, setCameraStarted] = useState(false);
   const [showGrid, setShowGrid] = useState(settings.camera.showGrid);
   const [mirror, setMirror] = useState(settings.camera.mirror);
   const [deviceSelectOpen, setDeviceSelectOpen] = useState(false);
@@ -34,12 +33,10 @@ export function CameraView() {
 
   const handleStartCamera = useCallback(async () => {
     await camera.startCamera(settings.camera);
-    setCameraStarted(true);
   }, [camera, settings.camera]);
 
   const handleStopCamera = useCallback(async () => {
     await camera.stopCamera();
-    setCameraStarted(false);
   }, [camera]);
 
   const handleCapture = useCallback(async (mode: CaptureMode, count: number) => {

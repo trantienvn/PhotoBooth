@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Images, ExternalLink, Trash2, RefreshCw, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Images, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
 import { useAppContext } from '@/app/AppContext';
 import { getAllSessions, deleteSession } from '@/services/storage.service';
 import type { CaptureSession } from '@/types';
 
 export function GalleryView() {
-  const { setCurrentSession, setView, currentSession, toast } = useAppContext();
+  const { setCurrentSession, setView, toast } = useAppContext();
   const [sessions, setSessions] = useState<CaptureSession[]>([]);
   const [loading, setLoading] = useState(true);
 

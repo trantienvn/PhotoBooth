@@ -1,8 +1,8 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 import { Camera, Images, Sliders, Download, Settings, Moon, Sun } from 'lucide-react';
 import { useAppContext, type AppView } from '@/app/AppContext';
 
-const navItems: { id: AppView; label: string; icon: React.ReactNode }[] = [
+const navItems: { id: AppView; label: string; icon: ReactNode }[] = [
   { id: 'camera', label: 'Camera', icon: <Camera size={18} /> },
   { id: 'gallery', label: 'Gallery', icon: <Images size={18} /> },
   { id: 'editor', label: 'Editor', icon: <Sliders size={18} /> },

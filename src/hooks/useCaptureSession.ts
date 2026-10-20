@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import type { CaptureSession, Photo, SessionStatus, CaptureMode } from '@/types';
 import { saveSession, savePhoto } from '@/services/storage.service';
 

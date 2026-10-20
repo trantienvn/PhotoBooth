@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Camera, Video, VideoOff, Pause, Play, Square, Download, Timer, Hash, Repeat } from 'lucide-react';
+import { useState } from 'react';
+import { Camera, Video, Pause, Play, Square, Download, Repeat } from 'lucide-react';
 import type { AppSettings, CaptureMode } from '@/types';
 import { formatDuration, formatBytes } from '@/services/export.service';
 import type { useTimelapse } from '@/hooks/useTimelapse';
@@ -55,7 +55,7 @@ export function CaptureControls({
 
   const handleTimelapse = () => {
     if (!cameraStream) return;
-    const { state, startRecording, pauseRecording, resumeRecording, stopRecording, downloadVideo } = timelapse;
+    const { state, startRecording, resumeRecording, stopRecording } = timelapse;
     if (state.status === 'idle' || state.status === 'stopped') {
       startRecording();
     } else if (state.status === 'recording') {

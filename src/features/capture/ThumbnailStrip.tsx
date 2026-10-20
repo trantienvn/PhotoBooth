@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Trash2, RefreshCw, GripVertical } from 'lucide-react';
+import { useState, type DragEvent } from 'react';
+import { Trash2, RefreshCw } from 'lucide-react';
 import type { Photo } from '@/types';
 
 interface ThumbnailStripProps {
@@ -17,7 +17,7 @@ export function ThumbnailStrip({ photos, onRetake, onDelete, onReorder }: Thumbn
     setDragging(index);
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const handleDragOver = (e: DragEvent, index: number) => {
     e.preventDefault();
     setDragOver(index);
   };

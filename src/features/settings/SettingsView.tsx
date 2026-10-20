@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Trash2, Volume2, VolumeX, Moon, Sun, RotateCcw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Trash2, RotateCcw } from 'lucide-react';
 import { useAppContext } from '@/app/AppContext';
-import { clearAllData, estimateStorageUsage, loadSettings, saveSettings } from '@/services/storage.service';
+import { clearAllData, estimateStorageUsage } from '@/services/storage.service';
 import { defaultAppSettings } from '@/types';
 import type { Resolution } from '@/types';
 import { formatBytes } from '@/services/export.service';

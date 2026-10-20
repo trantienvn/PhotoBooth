@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, type RefObject } from 'react';
 import { CameraService } from '@/services/camera.service';
 import type { CameraSettings, CameraDevice, CameraCapabilities } from '@/types';
 
@@ -11,7 +11,7 @@ export type CameraState =
   | 'unavailable';
 
 export interface UseCameraReturn {
-  videoRef: React.RefObject<HTMLVideoElement | null>;
+  videoRef: RefObject<HTMLVideoElement>;
   state: CameraState;
   error: string | null;
   devices: CameraDevice[];
@@ -25,7 +25,7 @@ export interface UseCameraReturn {
 }
 
 export function useCamera(): UseCameraReturn {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const serviceRef = useRef<CameraService>(new CameraService());
   const settingsRef = useRef<CameraSettings | null>(null);
 
