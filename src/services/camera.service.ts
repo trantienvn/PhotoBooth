@@ -1,4 +1,5 @@
-import type { CameraDevice, CameraSettings, CameraCapabilities, Resolution } from '@/types';
+import type { CameraDevice, CameraSettings, CameraCapabilities, Resolution, BeautySettings, FilterSettings } from '@/types';
+import { applyBeautyAndFilterToCanvas } from '@/services/image-processing.service';
 
 const RESOLUTION_CONSTRAINTS: Record<Resolution, MediaTrackConstraints> = {
   '480p': { width: { ideal: 854 }, height: { ideal: 480 } },
@@ -88,6 +89,8 @@ export class CameraService {
     mirror: boolean,
     targetWidth?: number,
     targetHeight?: number,
+    beauty?: BeautySettings,
+    filterSettings?: FilterSettings,
   ): HTMLCanvasElement {
     const rawW = video.videoWidth > 0 ? video.videoWidth : 1280;
     const rawH = video.videoHeight > 0 ? video.videoHeight : 720;
@@ -104,6 +107,11 @@ export class CameraService {
       ctx.scale(-1, 1);
     }
     ctx.drawImage(video, 0, 0, w, h);
+
+    if (beauty?.enabled || filterSettings) {
+      applyBeautyAndFilterToCanvas(canvas, beauty, filterSettings);
+    }
+
     return canvas;
   }
 

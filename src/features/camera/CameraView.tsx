@@ -1,20 +1,28 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   Camera, CameraOff, RefreshCw,
-  Grid, FlipHorizontal, ChevronDown, ChevronUp, AlertTriangle, Square
+  Grid, FlipHorizontal, ChevronDown, ChevronUp, AlertTriangle, Square,
+  Sparkles, Wand2, Palette, X, RotateCcw
 } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { useCaptureSession } from '@/hooks/useCaptureSession';
 import { useTimelapse } from '@/hooks/useTimelapse';
 import { useAppContext } from '@/app/AppContext';
-import type { CaptureMode, CaptureSession } from '@/types';
+import type { CaptureMode, CaptureSession, BeautySettings, FilterPresetName } from '@/types';
+import { defaultBeautySettings, defaultCropState, defaultFilterSettings } from '@/types';
 import { saveSession } from '@/services/storage.service';
 import { formatDuration } from '@/services/export.service';
+import {
+  filterPresets,
+  beautyPresets,
+  autoEnhanceSettings,
+  getCameraLiveCssFilter
+} from '@/services/image-processing.service';
 import { CaptureControls } from '@/features/capture/CaptureControls';
 import { ThumbnailStrip } from '@/features/capture/ThumbnailStrip';
 
 export function CameraView() {
-  const { settings, updateSettings, setCurrentSession, setView, toast, t } = useAppContext();
+  const { settings, updateSettings, setCurrentSession, setView, toast, t, setEditState } = useAppContext();
   const camera = useCamera();
   const capture = useCaptureSession();
   const [showGrid, setShowGrid] = useState(settings.camera.showGrid);
@@ -24,6 +32,24 @@ export function CameraView() {
   // In-preview quick capture controls
   const [previewMode, setPreviewMode] = useState<CaptureMode>('photobooth');
   const [previewCount, setPreviewCount] = useState<number>(settings.defaultPhotoCount || 4);
+
+  // Live Beauty, Retouch & Filter State
+  const [beauty, setBeauty] = useState<BeautySettings>({ ...defaultBeautySettings });
+  const [selectedFilter, setSelectedFilter] = useState<FilterPresetName>('original');
+  const [activeTray, setActiveTray] = useState<'none' | 'beauty' | 'filters'>('none');
+  const [isAutoEnhanced, setIsAutoEnhanced] = useState(false);
+
+  // Current active preset settings
+  const activePreset = useMemo(
+    () => filterPresets.find((p) => p.id === selectedFilter),
+    [selectedFilter]
+  );
+
+  // Live CSS filter for preview video
+  const liveVideoFilter = useMemo(
+    () => getCameraLiveCssFilter(activePreset?.settings, beauty),
+    [activePreset, beauty]
+  );
 
   useEffect(() => {
     setMirror(settings.camera.mirror);
@@ -43,6 +69,34 @@ export function CameraView() {
     await camera.stopCamera();
   }, [camera]);
 
+  const handleToggleAutoEnhance = () => {
+    if (isAutoEnhanced) {
+      setBeauty({ ...defaultBeautySettings });
+      setIsAutoEnhanced(false);
+      toast(t('camera.resetBeauty'), 'info');
+    } else {
+      setBeauty({ ...autoEnhanceSettings });
+      setIsAutoEnhanced(true);
+      toast(t('camera.autoEnhance') + ' ✨', 'success');
+    }
+  };
+
+  const handleSelectBeautyPreset = (presetId: 'off' | 'natural' | 'rosy' | 'porcelain' | 'korean') => {
+    const p = beautyPresets.find((b) => b.id === presetId);
+    if (!p) return;
+    setBeauty({ ...p.settings });
+    setIsAutoEnhanced(presetId !== 'off');
+  };
+
+  const updateBeautyField = (field: keyof BeautySettings, value: number) => {
+    setBeauty((prev) => ({
+      ...prev,
+      enabled: true,
+      [field]: value,
+      presetId: undefined,
+    }));
+  };
+
   const handleCapture = useCallback(async (mode: CaptureMode, count: number) => {
     if (camera.state !== 'active') {
       toast(t('camera.startCamera') + '…', 'error');
@@ -59,7 +113,7 @@ export function CameraView() {
       didStartTimelapse = true;
     }
 
-    const captureFrame = () => camera.captureFrame(settings.mirrorCapture);
+    const captureFrame = () => camera.captureFrame(settings.mirrorCapture, beauty, activePreset?.settings);
     await capture.beginCapture(captureFrame, {
       countdownSeconds: settings.countdownSeconds,
       delayBetweenShots: settings.delayBetweenShots,
@@ -86,6 +140,15 @@ export function CameraView() {
     // Now update and save the complete session with photos + timelapse
     const currentSessionPhotos = capture.session?.photos ?? [];
     if (currentSessionPhotos.length > 0) {
+      // Pre-set photo edit states with chosen filter preset
+      currentSessionPhotos.forEach((photo) => {
+        setEditState(photo.id, {
+          filter: activePreset ? { ...activePreset.settings } : defaultFilterSettings,
+          crop: defaultCropState,
+          presetId: selectedFilter,
+        });
+      });
+
       const completedSession: CaptureSession = {
         ...(capture.session ?? newSession),
         photos: currentSessionPhotos,
@@ -98,7 +161,7 @@ export function CameraView() {
       toast(t('camera.capturedSuccess'), 'success');
       setView('editor');
     }
-  }, [camera, capture, settings, setCurrentSession, timelapse, toast, t, setView]);
+  }, [camera, capture, settings, setCurrentSession, timelapse, toast, t, setView, beauty, activePreset, selectedFilter, setEditState]);
 
   const handleSingleCapture = useCallback(() => {
     handleCapture('single', 1);
@@ -301,8 +364,46 @@ export function CameraView() {
                 playsInline
                 muted
                 className={`camera-video ${mirror ? 'mirror' : ''}`}
-                style={{ background: '#000', width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{
+                  background: '#000',
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  filter: liveVideoFilter,
+                  transition: 'filter 0.15s ease',
+                }}
               />
+
+              {/* Skin smoothing soft glow overlay */}
+              {beauty.enabled && beauty.smooth > 0 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backdropFilter: `blur(${Math.max(0.4, (beauty.smooth / 100) * 1.8).toFixed(1)}px)`,
+                    WebkitBackdropFilter: `blur(${Math.max(0.4, (beauty.smooth / 100) * 1.8).toFixed(1)}px)`,
+                    opacity: Math.min(0.65, (beauty.smooth / 100) * 0.65),
+                    mixBlendMode: 'screen',
+                    pointerEvents: 'none',
+                    borderRadius: 'inherit',
+                  }}
+                />
+              )}
+
+              {/* Rosy skin glow blush overlay */}
+              {beauty.enabled && beauty.rosyGlow > 0 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(ellipse at center, rgba(255, 175, 195, 0.42) 0%, rgba(255, 130, 160, 0.18) 60%, transparent 100%)',
+                    opacity: Math.min(0.85, (beauty.rosyGlow / 100) * 0.85),
+                    mixBlendMode: 'soft-light',
+                    pointerEvents: 'none',
+                    borderRadius: 'inherit',
+                  }}
+                />
+              )}
 
               {/* Grid overlay */}
               {showGrid && camera.state === 'active' && (
@@ -350,6 +451,397 @@ export function CameraView() {
                 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s infinite' }} />
                   {t('camera.shotProgress', { current: capture.session.capturedCount + 1, total: capture.session.totalCount })}
+                </div>
+              )}
+
+              {/* TOP FLOATING TOOLBAR: AUTO ENHANCE, BEAUTY, FILTERS */}
+              {camera.state === 'active' && !isCapturing && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    zIndex: 30,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  {/* 1-Tap Auto Enhance Button */}
+                  <button
+                    onClick={handleToggleAutoEnhance}
+                    className={`btn ${isAutoEnhanced ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '6px 14px',
+                      borderRadius: 99,
+                      background: isAutoEnhanced
+                        ? 'linear-gradient(135deg, #ec4899, #8b5cf6)'
+                        : 'rgba(15, 23, 42, 0.65)',
+                      color: 'white',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      border: isAutoEnhanced
+                        ? '1px solid rgba(255,255,255,0.5)'
+                        : '1px solid rgba(255,255,255,0.2)',
+                      boxShadow: isAutoEnhanced ? '0 0 16px rgba(236,72,153,0.5)' : 'none',
+                      cursor: 'pointer',
+                    }}
+                    title={t('camera.autoEnhanceDesc')}
+                  >
+                    <Wand2 size={13} />
+                    {t('camera.autoEnhance')}
+                  </button>
+
+                  {/* Beauty & Retouch Toggle */}
+                  <button
+                    onClick={() => setActiveTray((prev) => (prev === 'beauty' ? 'none' : 'beauty'))}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '6px 14px',
+                      borderRadius: 99,
+                      background: activeTray === 'beauty' || (beauty.enabled && beauty.smooth > 0)
+                        ? 'linear-gradient(135deg, #f43f5e, #fb7185)'
+                        : 'rgba(15, 23, 42, 0.65)',
+                      color: 'white',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      border: activeTray === 'beauty' || (beauty.enabled && beauty.smooth > 0)
+                        ? '1px solid rgba(255,255,255,0.5)'
+                        : '1px solid rgba(255,255,255,0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Sparkles size={13} />
+                    {t('camera.beauty')}
+                    {beauty.enabled && beauty.smooth > 0 && (
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />
+                    )}
+                  </button>
+
+                  {/* Live Color Filters Toggle */}
+                  <button
+                    onClick={() => setActiveTray((prev) => (prev === 'filters' ? 'none' : 'filters'))}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '6px 14px',
+                      borderRadius: 99,
+                      background: activeTray === 'filters' || selectedFilter !== 'original'
+                        ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                        : 'rgba(15, 23, 42, 0.65)',
+                      color: 'white',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      border: activeTray === 'filters' || selectedFilter !== 'original'
+                        ? '1px solid rgba(255,255,255,0.5)'
+                        : '1px solid rgba(255,255,255,0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Palette size={13} />
+                    {selectedFilter === 'original'
+                      ? t('camera.filters')
+                      : (activePreset?.name ?? selectedFilter)}
+                  </button>
+                </div>
+              )}
+
+              {/* BEAUTY & RETOUCH DRAWER */}
+              {activeTray === 'beauty' && camera.state === 'active' && !isCapturing && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 100,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 'calc(100% - 32px)',
+                    maxWidth: 540,
+                    background: 'rgba(15, 23, 42, 0.90)',
+                    backdropFilter: 'blur(24px)',
+                    WebkitBackdropFilter: 'blur(24px)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '16px 20px',
+                    color: 'white',
+                    zIndex: 35,
+                    boxShadow: '0 20px 48px rgba(0,0,0,0.6)',
+                    maxHeight: 330,
+                    overflowY: 'auto',
+                  }}
+                >
+                  <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={16} color="#fb7185" />
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>{t('camera.beauty')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setBeauty({ ...autoEnhanceSettings });
+                          setIsAutoEnhanced(true);
+                        }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: 11, padding: '4px 8px', color: '#fb7185' }}
+                        title={t('camera.autoEnhance')}
+                      >
+                        <Wand2 size={12} />
+                        {t('camera.autoEnhance')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setBeauty({ ...defaultBeautySettings });
+                          setIsAutoEnhanced(false);
+                        }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: 11, padding: '4px 8px', color: 'rgba(255,255,255,0.7)' }}
+                        title={t('camera.resetBeauty')}
+                      >
+                        <RotateCcw size={12} />
+                        {t('camera.resetBeauty')}
+                      </button>
+                      <button
+                        onClick={() => setActiveTray('none')}
+                        className="btn btn-icon"
+                        style={{ width: 26, height: 26, color: 'rgba(255,255,255,0.7)' }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Beauty Presets */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 6, fontWeight: 600 }}>
+                      {t('camera.beautyStyles')}
+                    </div>
+                    <div className="flex items-center gap-2" style={{ overflowX: 'auto', paddingBottom: 4 }}>
+                      {beautyPresets.map((bp) => (
+                        <button
+                          key={bp.id}
+                          onClick={() => handleSelectBeautyPreset(bp.id)}
+                          style={{
+                            fontSize: 12,
+                            padding: '5px 12px',
+                            borderRadius: 99,
+                            border: beauty.presetId === bp.id
+                              ? '1px solid #fb7185'
+                              : '1px solid rgba(255,255,255,0.15)',
+                            background: beauty.presetId === bp.id
+                              ? 'rgba(244, 63, 94, 0.3)'
+                              : 'rgba(255,255,255,0.08)',
+                            color: 'white',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <span>{bp.icon}</span>
+                          <span>{bp.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sliders */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+                    <div>
+                      <div className="flex justify-between" style={{ fontSize: 12, marginBottom: 4 }}>
+                        <span>🫧 {t('camera.smooth')}</span>
+                        <span style={{ color: '#fb7185', fontWeight: 600 }}>{beauty.smooth}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={beauty.smooth}
+                        onChange={(e) => updateBeautyField('smooth', Number(e.target.value))}
+                        style={{ width: '100%', accentColor: '#fb7185' }}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between" style={{ fontSize: 12, marginBottom: 4 }}>
+                        <span>🌸 {t('camera.rosyGlow')}</span>
+                        <span style={{ color: '#fb7185', fontWeight: 600 }}>{beauty.rosyGlow}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={beauty.rosyGlow}
+                        onChange={(e) => updateBeautyField('rosyGlow', Number(e.target.value))}
+                        style={{ width: '100%', accentColor: '#fb7185' }}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between" style={{ fontSize: 12, marginBottom: 4 }}>
+                        <span>☀️ {t('camera.brighten')}</span>
+                        <span style={{ color: '#fb7185', fontWeight: 600 }}>{beauty.brighten}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={beauty.brighten}
+                        onChange={(e) => updateBeautyField('brighten', Number(e.target.value))}
+                        style={{ width: '100%', accentColor: '#fb7185' }}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between" style={{ fontSize: 12, marginBottom: 4 }}>
+                        <span>⚖️ {t('camera.contrast')}</span>
+                        <span style={{ color: '#fb7185', fontWeight: 600 }}>{beauty.contrast > 0 ? `+${beauty.contrast}` : beauty.contrast}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-50"
+                        max="50"
+                        value={beauty.contrast}
+                        onChange={(e) => updateBeautyField('contrast', Number(e.target.value))}
+                        style={{ width: '100%', accentColor: '#fb7185' }}
+                      />
+                    </div>
+
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <div className="flex justify-between" style={{ fontSize: 12, marginBottom: 4 }}>
+                        <span>🌡️ {t('camera.warmth')}</span>
+                        <span style={{ color: '#fb7185', fontWeight: 600 }}>{beauty.warmth > 0 ? `+${beauty.warmth}` : beauty.warmth}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-50"
+                        max="50"
+                        value={beauty.warmth}
+                        onChange={(e) => updateBeautyField('warmth', Number(e.target.value))}
+                        style={{ width: '100%', accentColor: '#fb7185' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* LIVE FILTERS DRAWER */}
+              {activeTray === 'filters' && camera.state === 'active' && !isCapturing && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 100,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 'calc(100% - 32px)',
+                    maxWidth: 620,
+                    background: 'rgba(15, 23, 42, 0.90)',
+                    backdropFilter: 'blur(24px)',
+                    WebkitBackdropFilter: 'blur(24px)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '14px 18px',
+                    color: 'white',
+                    zIndex: 35,
+                    boxShadow: '0 20px 48px rgba(0,0,0,0.6)',
+                  }}
+                >
+                  <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
+                    <div className="flex items-center gap-2">
+                      <Palette size={16} color="#818cf8" />
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>{t('camera.liveFilters')}</span>
+                    </div>
+                    <button
+                      onClick={() => setActiveTray('none')}
+                      className="btn btn-icon"
+                      style={{ width: 26, height: 26, color: 'rgba(255,255,255,0.7)' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  <div
+                    className="flex items-center gap-3"
+                    style={{
+                      overflowX: 'auto',
+                      paddingBottom: 8,
+                      scrollbarWidth: 'thin',
+                    }}
+                  >
+                    {filterPresets.map((preset) => {
+                      const isSelected = selectedFilter === preset.id;
+                      const gradientBg =
+                        preset.id === 'bw'
+                          ? 'linear-gradient(135deg, #333, #aaa)'
+                          : preset.id === 'warm'
+                          ? 'linear-gradient(135deg, #f97316, #fde68a)'
+                          : preset.id === 'cool'
+                          ? 'linear-gradient(135deg, #38bdf8, #818cf8)'
+                          : preset.id === 'vintage'
+                          ? 'linear-gradient(135deg, #a16207, #fef3c7)'
+                          : preset.id === 'pastel'
+                          ? 'linear-gradient(135deg, #f472b6, #c084fc)'
+                          : preset.id === 'korean'
+                          ? 'linear-gradient(135deg, #fbcfe8, #fed7aa)'
+                          : preset.id === 'cinematic'
+                          ? 'linear-gradient(135deg, #0f172a, #0284c7)'
+                          : preset.id === 'soft'
+                          ? 'linear-gradient(135deg, #fed7aa, #fef08a)'
+                          : preset.id === 'natural'
+                          ? 'linear-gradient(135deg, #86efac, #fde047)'
+                          : 'linear-gradient(135deg, #64748b, #cbd5e1)';
+
+                      return (
+                        <button
+                          key={preset.id}
+                          onClick={() => setSelectedFilter(preset.id)}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 6,
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            padding: '4px',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 52,
+                              height: 52,
+                              borderRadius: 14,
+                              background: gradientBg,
+                              border: isSelected ? '3px solid #818cf8' : '2px solid rgba(255,255,255,0.2)',
+                              boxShadow: isSelected ? '0 0 14px rgba(129, 140, 248, 0.6)' : 'none',
+                              transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                              transition: 'all 0.15s ease',
+                            }}
+                          />
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: isSelected ? 700 : 500,
+                              color: isSelected ? '#818cf8' : 'rgba(255,255,255,0.8)',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {preset.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
