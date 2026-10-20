@@ -79,9 +79,9 @@ export function CameraView() {
   const isCapturing = capture.status === 'countdown' || capture.status === 'capturing';
 
   return (
-    <div className="flex h-full" style={{ overflow: 'hidden' }}>
+    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', overflow: 'hidden' }}>
       {/* Sidebar: capture controls */}
-      <div className="app-sidebar" style={{ width: 'var(--sidebar-w)', minWidth: 'var(--sidebar-w)' }}>
+      <div className="app-sidebar" style={{ width: 'var(--sidebar-w)', minWidth: 'var(--sidebar-w)', flexShrink: 0 }}>
         <CaptureControls
           onCapture={handleCapture}
           onSingleCapture={handleSingleCapture}
@@ -99,12 +99,14 @@ export function CameraView() {
       </div>
 
       {/* Main: camera preview */}
-      <div className="app-main" style={{ position: 'relative' }}>
+      <div className="app-main" style={{ position: 'relative', flex: 1, width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Top toolbar */}
         <div className="flex items-center justify-between" style={{
-          padding: '10px 16px',
+          padding: '12px 24px',
           borderBottom: '1px solid var(--border-subtle)',
           background: 'var(--surface-elevated)',
+          width: '100%',
+          flexShrink: 0,
         }}>
           <div className="flex items-center gap-2">
             {/* Camera status */}
@@ -221,7 +223,18 @@ export function CameraView() {
         </div>
 
         {/* Camera preview area */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflow: 'hidden' }}>
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          overflow: 'hidden',
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+        }}>
           {camera.state === 'error' ? (
             <PermissionError message={camera.error} onRetry={handleStartCamera} isSecure={camera.isSecureContext} />
           ) : camera.state === 'idle' || camera.state === 'stopped' ? (
@@ -231,10 +244,11 @@ export function CameraView() {
               className="camera-container"
               style={{
                 width: '100%',
-                maxWidth: 800,
-                maxHeight: 'calc(100vh - var(--header-h) - 160px)',
+                maxWidth: 880,
+                maxHeight: 'calc(100vh - var(--header-h) - 180px)',
                 aspectRatio: '4/3',
                 boxShadow: 'var(--shadow-xl)',
+                margin: 'auto',
               }}
             >
               <video

@@ -125,7 +125,7 @@ export function ExportView() {
   }
 
   return (
-    <div className="flex h-full" style={{ overflow: 'hidden' }}>
+    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', overflow: 'hidden' }}>
       {/* Left sidebar */}
       <div className="app-sidebar" style={{ width: 300, minWidth: 300 }}>
         {/* Tabs */}
@@ -308,7 +308,7 @@ export function ExportView() {
       </div>
 
       {/* Main: preview + export button */}
-      <div className="app-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
+      <div className="app-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, flex: 1, width: '100%', minWidth: 0, position: 'relative' }}>
         {isRendering && (
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3 }}>
             <div style={{ height: '100%', background: 'var(--brand-gradient)', width: `${renderProgress * 100}%`, transition: 'width 0.3s' }} />

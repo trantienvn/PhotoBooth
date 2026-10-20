@@ -132,7 +132,7 @@ export function PhotoEditor() {
   }
 
   return (
-    <div className="flex h-full" style={{ overflow: 'hidden' }}>
+    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', overflow: 'hidden' }}>
       {/* Left: Photo list + controls */}
       <div className="app-sidebar" style={{ width: 260 }}>
         <div className="section-header">Photos</div>
@@ -220,7 +220,7 @@ export function PhotoEditor() {
       </div>
 
       {/* Main: preview */}
-      <div className="app-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
+      <div className="app-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, flex: 1, width: '100%', minWidth: 0 }}>
         {/* Navigation */}
         <div className="flex items-center gap-3">
           <button className="btn btn-icon btn-secondary" onClick={goPrev} disabled={photos.indexOf(selectedPhoto!) <= 0}>

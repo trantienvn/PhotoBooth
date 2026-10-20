@@ -20,7 +20,7 @@ function AppContent() {
       background: 'var(--surface-bg)',
     }}>
       <Header />
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', width: '100%', minHeight: 0 }}>
         {currentView === 'camera' && <CameraView />}
         {currentView === 'gallery' && (
           <div style={{ flex: 1, overflowY: 'auto' }}>
