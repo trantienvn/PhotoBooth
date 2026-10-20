@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Images, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
+import { Images, Trash2, RefreshCw, ExternalLink, Video } from 'lucide-react';
 import { useAppContext } from '@/app/AppContext';
 import { getAllSessions, deleteSession } from '@/services/storage.service';
 import type { CaptureSession } from '@/types';
@@ -30,6 +30,27 @@ export function GalleryView() {
     toast('Session deleted.', 'info');
   };
 
+  const emptySessions = sessions.filter((s) => s.photos.length === 0);
+
+  const handleCleanEmptySessions = async () => {
+    for (const s of emptySessions) {
+      await deleteSession(s.id);
+    }
+    setSessions((prev) => prev.filter((s) => s.photos.length > 0));
+    toast(`Cleaned up ${emptySessions.length} empty session(s).`, 'success');
+  };
+
+  const handleDownloadVideo = (session: CaptureSession) => {
+    if (!session.timelapseUrl) return;
+    const a = document.createElement('a');
+    a.href = session.timelapseUrl;
+    a.download = `lumibooth_timelapse_${session.id.slice(0, 8)}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast('Timelapse video downloaded!', 'success');
+  };
+
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center" style={{ flex: 1, width: '100%', height: '100%' }}>
@@ -53,13 +74,25 @@ export function GalleryView() {
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: 24, width: '100%' }}>
-      <div className="flex items-center justify-between" style={{ marginBottom: 24 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28 }}>
-          🖼️ Gallery
-        </h1>
-        <button className="btn btn-secondary" onClick={loadSessions}>
-          <RefreshCw size={15} /> Refresh
-        </button>
+      <div className="flex items-center justify-between" style={{ marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28 }}>
+            🖼️ Gallery
+          </h1>
+          <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 2 }}>
+            {sessions.length} session{sessions.length !== 1 ? 's' : ''} saved locally
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {emptySessions.length > 0 && (
+            <button className="btn btn-secondary" onClick={handleCleanEmptySessions} style={{ color: 'var(--color-danger)' }}>
+              <Trash2 size={14} /> Clear {emptySessions.length} Empty
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={loadSessions}>
+            <RefreshCw size={15} /> Refresh
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
@@ -69,6 +102,7 @@ export function GalleryView() {
             session={session}
             onOpen={() => handleOpenSession(session)}
             onDelete={() => handleDeleteSession(session.id)}
+            onDownloadVideo={() => handleDownloadVideo(session)}
           />
         ))}
       </div>
@@ -80,10 +114,12 @@ function SessionCard({
   session,
   onOpen,
   onDelete,
+  onDownloadVideo,
 }: {
   session: CaptureSession;
   onOpen: () => void;
   onDelete: () => void;
+  onDownloadVideo: () => void;
 }) {
   const date = new Date(session.createdAt).toLocaleString();
   const thumbPhotos = session.photos.slice(0, 4);
@@ -104,7 +140,7 @@ function SessionCard({
         display: 'grid',
         gridTemplateColumns: thumbPhotos.length === 1 ? '1fr' : 'repeat(2, 1fr)',
         gap: 2,
-        background: '#000',
+        background: '#09090b',
         height: 160,
       }}>
         {thumbPhotos.map((photo) => (
@@ -116,28 +152,48 @@ function SessionCard({
           />
         ))}
         {thumbPhotos.length === 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
-            No photos
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717a', fontSize: 13 }}>
+            No photos taken
           </div>
         )}
       </div>
 
       {/* Info */}
       <div style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: 13, fontWeight: 600 }}>
-          {session.photos.length} photo{session.photos.length !== 1 ? 's' : ''}
-          {' · '}
-          <span style={{ color: 'var(--text-tertiary)', textTransform: 'capitalize' }}>{session.mode}</span>
+        <div className="flex items-center justify-between">
+          <div style={{ fontSize: 13, fontWeight: 600 }}>
+            {session.photos.length} photo{session.photos.length !== 1 ? 's' : ''}
+            {' · '}
+            <span style={{ color: 'var(--text-tertiary)', textTransform: 'capitalize' }}>{session.mode}</span>
+          </div>
+          {session.timelapseUrl && (
+            <span className="badge badge-active" style={{ fontSize: 10, padding: '2px 6px' }}>
+              🎬 Video
+            </span>
+          )}
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{date}</div>
       </div>
 
       {/* Actions */}
       <div className="flex" style={{ borderTop: '1px solid var(--border-subtle)', padding: 8, gap: 6 }}>
-        <button className="btn btn-primary flex-1" style={{ fontSize: 13 }} onClick={onOpen}>
-          <ExternalLink size={14} /> Open
-        </button>
-        <button className="btn btn-danger btn-icon" onClick={onDelete} aria-label="Delete session">
+        {session.photos.length > 0 ? (
+          <button className="btn btn-primary flex-1" style={{ fontSize: 13 }} onClick={onOpen}>
+            <ExternalLink size={14} /> Open
+          </button>
+        ) : (
+          <div style={{ flex: 1, fontSize: 12, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center' }}>
+            Empty session
+          </div>
+        )}
+
+        {session.timelapseUrl && (
+          <button className="btn btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={onDownloadVideo} title="Download timelapse video">
+            <Video size={13} /> Video
+          </button>
+        )}
+
+        <button className="btn btn-danger btn-icon" onClick={onDelete} aria-label="Delete session" title="Delete">
           <Trash2 size={14} />
         </button>
       </div>

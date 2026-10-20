@@ -101,6 +101,7 @@ function renderLayers(
   layers: Layer[],
   canvasW: number,
   canvasH: number,
+  scale: number = 1,
 ): void {
   const sorted = [...layers].sort((a, b) => a.zIndex - b.zIndex);
   for (const layer of sorted) {
@@ -113,14 +114,16 @@ function renderLayers(
 
     if (layer.type === 'text') {
       const tl = layer as TextLayer;
-      ctx.font = `${tl.italic ? 'italic ' : ''}${tl.bold ? 'bold ' : ''}${tl.fontSize}px ${tl.fontFamily}`;
+      const fSize = Math.max(8, Math.round(tl.fontSize * scale));
+      ctx.font = `${tl.italic ? 'italic ' : ''}${tl.bold ? 'bold ' : ''}${fSize}px ${tl.fontFamily || 'Inter, sans-serif'}`;
       ctx.fillStyle = tl.color;
-      ctx.textAlign = tl.align;
+      ctx.textAlign = tl.align || 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(tl.content, 0, 0);
     } else if (layer.type === 'emoji') {
       const el = layer as EmojiLayer;
-      ctx.font = `${el.fontSize}px serif`;
+      const fSize = Math.max(12, Math.round(el.fontSize * scale));
+      ctx.font = `${fSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(el.emoji, 0, 0);
@@ -237,7 +240,7 @@ export async function renderTemplate(
 
   // Decoration layers
   if (decoration.layers.length > 0) {
-    renderLayers(ctx, decoration.layers, canvasW, canvasH);
+    renderLayers(ctx, decoration.layers, canvasW, canvasH, scale);
   }
 
   const mimeType = options.format === 'png' ? 'image/png'

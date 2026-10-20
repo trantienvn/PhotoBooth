@@ -89,8 +89,10 @@ export class CameraService {
     targetWidth?: number,
     targetHeight?: number,
   ): HTMLCanvasElement {
-    const w = targetWidth ?? video.videoWidth;
-    const h = targetHeight ?? video.videoHeight;
+    const rawW = video.videoWidth > 0 ? video.videoWidth : 1280;
+    const rawH = video.videoHeight > 0 ? video.videoHeight : 720;
+    const w = targetWidth ?? rawW;
+    const h = targetHeight ?? rawH;
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;

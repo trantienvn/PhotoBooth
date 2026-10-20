@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { AppSettings, CaptureSession, PhotoEditState, TemplateConfig, PhotostripDecoration } from '@/types';
 import { defaultAppSettings, defaultDecoration } from '@/types';
-import { loadSettings } from '@/services/storage.service';
+import { loadSettings, saveSettings } from '@/services/storage.service';
 
 export type AppView = 'camera' | 'gallery' | 'editor' | 'export' | 'settings';
 
@@ -27,7 +27,7 @@ interface AppContextValue {
   setSelectedTemplate: (t: TemplateConfig | null) => void;
   // Decoration
   decoration: PhotostripDecoration;
-  setDecoration: (d: PhotostripDecoration) => void;
+  setDecoration: (d: PhotostripDecoration | ((prev: PhotostripDecoration) => PhotostripDecoration)) => void;
   // Toast
   toast: (msg: string, type?: 'info' | 'success' | 'error') => void;
   toasts: ToastItem[];
@@ -69,7 +69,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   const updateSettings = useCallback((partial: Partial<AppSettings>) => {
-    setSettings((prev) => ({ ...prev, ...partial }));
+    setSettings((prev) => {
+      const next = { ...prev, ...partial };
+      saveSettings(next).catch(console.error);
+      return next;
+    });
   }, []);
 
   const toggleTheme = useCallback(() => {

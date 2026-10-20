@@ -119,6 +119,12 @@ export function SettingsView() {
             onChange={(v) => updateSettings({ soundEnabled: v })}
           />
         </SettingRow>
+        <SettingRow label="Auto timelapse recording">
+          <Toggle
+            checked={settings.autoTimelapse}
+            onChange={(v) => updateSettings({ autoTimelapse: v })}
+          />
+        </SettingRow>
       </SettingSection>
 
       {/* Appearance */}

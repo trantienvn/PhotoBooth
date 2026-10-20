@@ -280,6 +280,7 @@ export interface AppSettings {
   delayBetweenShots: number;     // ms
   soundEnabled: boolean;
   mirrorCapture: boolean;
+  autoTimelapse: boolean;
   theme: 'light' | 'dark' | 'system';
   showWatermark: boolean;
   language: string;
@@ -292,6 +293,7 @@ export const defaultAppSettings: AppSettings = {
   delayBetweenShots: 1500,
   soundEnabled: true,
   mirrorCapture: true,
+  autoTimelapse: true,
   theme: 'system',
   showWatermark: true,
   language: 'en',

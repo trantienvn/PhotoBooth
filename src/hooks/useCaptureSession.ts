@@ -20,6 +20,7 @@ export interface CaptureController {
   beginCapture: (
     captureFrame: () => HTMLCanvasElement | null,
     settings: CaptureSettings,
+    targetSession?: CaptureSession,
   ) => Promise<void>;
   addPhoto: (canvas: HTMLCanvasElement, sessionId: string, index: number) => Photo;
   retakePhoto: (photoId: string) => void;
@@ -41,6 +42,7 @@ export interface CaptureSettings {
 
 export function useCaptureSession(): CaptureController {
   const [session, setSession] = useState<CaptureSession | null>(null);
+  const sessionRef = useRef<CaptureSession | null>(null);
   const [status, setStatusState] = useState<SessionStatus>('idle');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [countdown, setCountdown] = useState(0);
@@ -70,10 +72,13 @@ export function useCaptureSession(): CaptureController {
       createdAt: Date.now(),
     };
     isCancelledRef.current = false;
+    sessionRef.current = newSession;
     setSession(newSession);
     setStatusState('preparing');
     setCurrentIndex(0);
     setCountdown(0);
+    // Persist initial session state
+    saveSession(newSession).catch(console.error);
     return newSession;
   }, []);
 
@@ -89,18 +94,31 @@ export function useCaptureSession(): CaptureController {
       height: canvas.height,
     };
 
-    setSession((prev) => {
-      if (!prev) return prev;
-      const updated = {
-        ...prev,
-        photos: [...prev.photos, photo],
-        capturedCount: prev.capturedCount + 1,
+    if (sessionRef.current && sessionRef.current.id === sessionId) {
+      const updatedPhotos = [...sessionRef.current.photos, photo];
+      const updated: CaptureSession = {
+        ...sessionRef.current,
+        photos: updatedPhotos,
+        capturedCount: updatedPhotos.length,
       };
-      // Persist async
-      savePhoto(photo).catch(console.error);
-      return updated;
-    });
+      sessionRef.current = updated;
+      setSession(updated);
+      saveSession(updated).catch(console.error);
+    } else {
+      setSession((prev) => {
+        if (!prev) return prev;
+        const updated = {
+          ...prev,
+          photos: [...prev.photos, photo],
+          capturedCount: prev.capturedCount + 1,
+        };
+        sessionRef.current = updated;
+        saveSession(updated).catch(console.error);
+        return updated;
+      });
+    }
 
+    savePhoto(photo).catch(console.error);
     return photo;
   }, []);
 
@@ -124,9 +142,12 @@ export function useCaptureSession(): CaptureController {
   const beginCapture = useCallback(async (
     captureFrame: () => HTMLCanvasElement | null,
     settings: CaptureSettings,
+    targetSession?: CaptureSession,
   ) => {
-    const currentSession = session;
+    const currentSession = targetSession ?? sessionRef.current ?? session;
     if (!currentSession) return;
+    sessionRef.current = currentSession;
+    setSession(currentSession);
 
     isCancelledRef.current = false;
     const { countdownSeconds, delayBetweenShots, soundEnabled, autoAdvance } = settings;
@@ -157,10 +178,14 @@ export function useCaptureSession(): CaptureController {
       if (soundEnabled) playBeep(0);
       setTimeout(() => setIsFlashing(false), 300);
 
+      // Brief delay to allow flash render
+      await new Promise<void>((resolve) => setTimeout(resolve, 40));
+
       // Capture frame
       const canvas = captureFrame();
-      if (canvas && !isCancelledRef.current) {
-        addPhoto(canvas, currentSession.id, idx);
+      const active = sessionRef.current ?? currentSession;
+      if (canvas && !isCancelledRef.current && active) {
+        addPhoto(canvas, active.id, idx);
       }
 
       setStatusState('reviewing');
@@ -170,7 +195,7 @@ export function useCaptureSession(): CaptureController {
     // Run capture sequence
     const total = currentSession.totalCount;
     if (autoAdvance) {
-      for (let i = currentSession.capturedCount; i < total; i++) {
+      for (let i = 0; i < total; i++) {
         const ok = await captureOne(i);
         if (!ok) break;
         if (i < total - 1) {
@@ -181,33 +206,35 @@ export function useCaptureSession(): CaptureController {
         }
       }
     } else {
-      await captureOne(currentSession.capturedCount);
+      const active = sessionRef.current ?? currentSession;
+      await captureOne(active.capturedCount);
     }
 
-    // Check if session is complete
-    setSession((prev) => {
-      if (!prev) return prev;
-      if (prev.capturedCount >= prev.totalCount) {
-        setStatusState('reviewing');
-        const completed = { ...prev, status: 'reviewing' as SessionStatus };
-        saveSession(completed).catch(console.error);
-        return completed;
-      }
-      return prev;
-    });
+    // Check if session is complete and save
+    const finalSession = sessionRef.current;
+    if (finalSession && finalSession.photos.length > 0) {
+      setStatusState('reviewing');
+      const completed: CaptureSession = {
+        ...finalSession,
+        status: 'reviewing',
+      };
+      sessionRef.current = completed;
+      setSession(completed);
+      await saveSession(completed).catch(console.error);
+    }
   }, [session, addPhoto, playBeep]);
 
   const retakePhoto = useCallback((photoId: string) => {
     setSession((prev) => {
       if (!prev) return prev;
-      const photoIdx = prev.photos.findIndex((p) => p.id === photoId);
-      if (photoIdx === -1) return prev;
       const updatedPhotos = prev.photos.filter((p) => p.id !== photoId);
-      const updated = {
+      const updated: CaptureSession = {
         ...prev,
         photos: updatedPhotos,
         capturedCount: updatedPhotos.length,
       };
+      sessionRef.current = updated;
+      saveSession(updated).catch(console.error);
       return updated;
     });
   }, []);
@@ -216,7 +243,14 @@ export function useCaptureSession(): CaptureController {
     setSession((prev) => {
       if (!prev) return prev;
       const updatedPhotos = prev.photos.filter((p) => p.id !== photoId);
-      return { ...prev, photos: updatedPhotos, capturedCount: updatedPhotos.length };
+      const updated: CaptureSession = {
+        ...prev,
+        photos: updatedPhotos,
+        capturedCount: updatedPhotos.length,
+      };
+      sessionRef.current = updated;
+      saveSession(updated).catch(console.error);
+      return updated;
     });
   }, []);
 
@@ -226,9 +260,11 @@ export function useCaptureSession(): CaptureController {
       const photos = [...prev.photos];
       const [moved] = photos.splice(fromIndex, 1);
       photos.splice(toIndex, 0, moved);
-      // Re-assign indices
       const reindexed = photos.map((p, i) => ({ ...p, index: i }));
-      return { ...prev, photos: reindexed };
+      const updated: CaptureSession = { ...prev, photos: reindexed };
+      sessionRef.current = updated;
+      saveSession(updated).catch(console.error);
+      return updated;
     });
   }, []);
 
@@ -236,7 +272,8 @@ export function useCaptureSession(): CaptureController {
     setStatusState('completed');
     setSession((prev) => {
       if (!prev) return prev;
-      const completed = { ...prev, status: 'completed' as SessionStatus, completedAt: Date.now() };
+      const completed: CaptureSession = { ...prev, status: 'completed' as SessionStatus, completedAt: Date.now() };
+      sessionRef.current = completed;
       saveSession(completed).catch(console.error);
       return completed;
     });
@@ -253,6 +290,7 @@ export function useCaptureSession(): CaptureController {
   const resetSession = useCallback(() => {
     isCancelledRef.current = true;
     clearTimer();
+    sessionRef.current = null;
     setSession(null);
     setStatusState('idle');
     setCurrentIndex(0);

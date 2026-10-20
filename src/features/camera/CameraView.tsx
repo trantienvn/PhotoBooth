@@ -8,6 +8,7 @@ import { useCaptureSession } from '@/hooks/useCaptureSession';
 import { useTimelapse } from '@/hooks/useTimelapse';
 import { useAppContext } from '@/app/AppContext';
 import type { CaptureMode } from '@/types';
+import { saveSession } from '@/services/storage.service';
 import { formatDuration } from '@/services/export.service';
 import { CaptureControls } from '@/features/capture/CaptureControls';
 import { ThumbnailStrip } from '@/features/capture/ThumbnailStrip';
@@ -20,11 +21,24 @@ export function CameraView() {
   const [mirror, setMirror] = useState(settings.camera.mirror);
   const [deviceSelectOpen, setDeviceSelectOpen] = useState(false);
 
+  useEffect(() => {
+    setMirror(settings.camera.mirror);
+  }, [settings.camera.mirror]);
+
+  useEffect(() => {
+    setShowGrid(settings.camera.showGrid);
+  }, [settings.camera.showGrid]);
+
   const timelapse = useTimelapse(camera.state === 'active' ? camera.videoRef.current?.srcObject as MediaStream | null : null);
 
   // When session is done, navigate to editor
   useEffect(() => {
-    if (capture.session && capture.status === 'reviewing' && capture.session.capturedCount >= capture.session.totalCount) {
+    if (
+      capture.session &&
+      capture.status === 'reviewing' &&
+      capture.session.photos.length > 0 &&
+      capture.session.photos.length >= capture.session.totalCount
+    ) {
       setCurrentSession(capture.session);
       toast('Photos captured! Choose a template to continue.', 'success');
       setView('editor');
@@ -44,8 +58,16 @@ export function CameraView() {
       toast('Please start camera first', 'error');
       return;
     }
-    const session = capture.startSession(mode, count);
-    setCurrentSession(session);
+    const newSession = capture.startSession(mode, count);
+    setCurrentSession(newSession);
+
+    // Auto-start timelapse by default if idle/stopped
+    let didStartTimelapse = false;
+    const stream = camera.videoRef.current?.srcObject as MediaStream | null;
+    if (stream && (timelapse.state.status === 'idle' || timelapse.state.status === 'stopped')) {
+      timelapse.startRecording();
+      didStartTimelapse = true;
+    }
 
     const captureFrame = () => camera.captureFrame(settings.mirrorCapture);
     await capture.beginCapture(captureFrame, {
@@ -54,8 +76,26 @@ export function CameraView() {
       soundEnabled: settings.soundEnabled,
       mirrorCapture: settings.mirrorCapture,
       autoAdvance: true,
-    });
-  }, [camera, capture, settings, setCurrentSession, toast]);
+    }, newSession);
+
+    // Stop timelapse if recording and attach to session
+    if (didStartTimelapse || timelapse.state.status === 'recording') {
+      try {
+        const videoRes = await timelapse.stopRecording();
+        if (videoRes) {
+          const updatedWithVideo = {
+            ...newSession,
+            timelapseUrl: videoRes.url,
+            timelapseBlob: videoRes.blob,
+          };
+          setCurrentSession(updatedWithVideo);
+          saveSession(updatedWithVideo).catch(console.error);
+        }
+      } catch (err) {
+        console.error('Error stopping timelapse:', err);
+      }
+    }
+  }, [camera, capture, settings, setCurrentSession, timelapse, toast]);
 
   const handleSingleCapture = useCallback(() => {
     handleCapture('single', 1);
