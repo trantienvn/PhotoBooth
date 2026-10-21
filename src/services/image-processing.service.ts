@@ -1,5 +1,6 @@
-import type { FilterPreset, FilterSettings, FilterPresetName, BeautySettings, DetectedFace } from '@/types';
+import type { FilterPreset, FilterSettings, FilterPresetName, BeautySettings, DetectedFace, LutPresetId } from '@/types';
 import { renderFaceBeauty, renderArFilter } from '@/services/ar-filters.service';
+import { applyLutToCanvas, getLutLiveCssFilter } from '@/services/lut.service';
 
 export const filterPresets: FilterPreset[] = [
   {
@@ -125,6 +126,8 @@ export function applyFiltersToCanvas(
   settings: FilterSettings,
   targetWidth?: number,
   targetHeight?: number,
+  lutId?: LutPresetId,
+  lutIntensity?: number,
 ): HTMLCanvasElement {
   const srcWidth = source instanceof HTMLCanvasElement ? source.width : (source as HTMLImageElement).naturalWidth;
   const srcHeight = source instanceof HTMLCanvasElement ? source.height : (source as HTMLImageElement).naturalHeight;
@@ -171,6 +174,11 @@ export function applyFiltersToCanvas(
   // Grain
   if (settings.grain > 0) {
     applyGrain(ctx, width, height, settings.grain);
+  }
+
+  // Authentic 3D LUT Color Grading
+  if (lutId && lutId !== 'none') {
+    applyLutToCanvas(canvas, lutId, lutIntensity ?? 100);
   }
 
   return canvas;
@@ -355,6 +363,14 @@ export function getCameraLiveCssFilter(
     parts.push(`hue-rotate(${Math.max(-20, warmth * 0.4).toFixed(0)}deg)`);
   }
 
+  // Real-time LUT CSS approximation
+  if (beauty?.lutId && beauty.lutId !== 'none') {
+    const lutFilter = getLutLiveCssFilter(beauty.lutId, beauty.lutIntensity ?? 100);
+    if (lutFilter) {
+      parts.push(lutFilter);
+    }
+  }
+
   return parts.join(' ');
 }
 
@@ -459,6 +475,11 @@ export function applyBeautyAndFilterToCanvas(
   // 6. Render AR filter on top of the captured photo
   if (faceList.length > 0 && beauty?.arFilter && beauty.arFilter !== 'none') {
     renderArFilter(ctx, faceList, w, h, beauty.arFilter);
+  }
+
+  // 7. Authentic 3D LUT Color Grading
+  if (beauty?.lutId && beauty.lutId !== 'none') {
+    applyLutToCanvas(canvas, beauty.lutId, beauty.lutIntensity ?? 100);
   }
 
   return canvas;

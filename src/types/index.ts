@@ -117,6 +117,31 @@ export interface DetectedFace {
   confidence: number;
 }
 
+// --- LUT (Look-Up Table) Color Grading ---
+export type LutPresetId =
+  | 'none'
+  | 'kodak_portra'
+  | 'fuji_velvia'
+  | 'teal_orange'
+  | 'cyberpunk'
+  | 'korean_glow'
+  | 'vintage_70s'
+  | 'polaroid_600'
+  | 'moody_bw'
+  | 'golden_hour'
+  | 'bleach_bypass'
+  | 'pastel_dream'
+  | 'nordic_cool';
+
+export interface LutPresetInfo {
+  id: LutPresetId;
+  name: string;
+  category: 'film' | 'cinematic' | 'artistic' | 'vintage';
+  description: string;
+  badge: string;
+  accentColor: string;
+}
+
 // --- Live Beauty & Retouch Settings ---
 export interface BeautySettings {
   enabled: boolean;
@@ -128,6 +153,8 @@ export interface BeautySettings {
   presetId?: 'off' | 'natural' | 'rosy' | 'porcelain' | 'korean';
   faceTracking?: boolean; // Tự động nhận diện khuôn mặt để làm mịn cục bộ & gắn AR
   arFilter?: ArFilterId;  // Filter AR đang kích hoạt
+  lutId?: LutPresetId;    // 3D LUT Color Grading preset
+  lutIntensity?: number;  // 0 to 100
 }
 
 export const defaultBeautySettings: BeautySettings = {
@@ -140,6 +167,8 @@ export const defaultBeautySettings: BeautySettings = {
   presetId: 'off',
   faceTracking: true,
   arFilter: 'none',
+  lutId: 'none',
+  lutIntensity: 100,
 };
 
 export type FilterPresetName =
@@ -186,11 +215,15 @@ export interface PhotoEditState {
   filter: FilterSettings;
   crop: CropState;
   presetId?: FilterPresetName;
+  lutId?: LutPresetId;
+  lutIntensity?: number;
 }
 
 export const defaultPhotoEditState: PhotoEditState = {
   filter: defaultFilterSettings,
   crop: defaultCropState,
+  lutId: 'none',
+  lutIntensity: 100,
 };
 
 // --- Sticker / Text ---

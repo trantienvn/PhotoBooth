@@ -112,7 +112,7 @@ export class CameraService {
     ctx.drawImage(video, 0, 0, w, h);
     ctx.restore();
 
-    if (beauty?.enabled || filterSettings) {
+    if (beauty?.enabled || (beauty?.lutId && beauty.lutId !== 'none') || filterSettings) {
       let effectiveFaces: DetectedFace[] | undefined;
       if (faces) {
         const rawList = Array.isArray(faces) ? faces : [faces];

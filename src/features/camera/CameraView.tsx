@@ -2,7 +2,7 @@ import { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import {
   Camera, CameraOff, RefreshCw,
   Grid, FlipHorizontal, ChevronDown, ChevronUp, AlertTriangle, Square,
-  Sparkles, Wand2, Palette, X, RotateCcw, Smile
+  Sparkles, Wand2, Palette, X, RotateCcw, Smile, Film, Download
 } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { useCaptureSession } from '@/hooks/useCaptureSession';
@@ -20,6 +20,7 @@ import {
 } from '@/services/image-processing.service';
 import { globalFaceTracker } from '@/services/face-tracking.service';
 import { arFiltersList, renderArFilter, renderFaceBeauty } from '@/services/ar-filters.service';
+import { lutPresets, generateLutStripAsset } from '@/services/lut.service';
 import { CaptureControls } from '@/features/capture/CaptureControls';
 import { ThumbnailStrip } from '@/features/capture/ThumbnailStrip';
 
@@ -38,7 +39,7 @@ export function CameraView() {
   // Live Beauty, Retouch & Filter State
   const [beauty, setBeauty] = useState<BeautySettings>({ ...defaultBeautySettings });
   const [selectedFilter, setSelectedFilter] = useState<FilterPresetName>('original');
-  const [activeTray, setActiveTray] = useState<'none' | 'beauty' | 'filters' | 'ar'>('none');
+  const [activeTray, setActiveTray] = useState<'none' | 'beauty' | 'filters' | 'ar' | 'lut'>('none');
   const [isAutoEnhanced, setIsAutoEnhanced] = useState(false);
 
   // AR & Multi-Face Tracking Refs
@@ -660,6 +661,36 @@ export function CameraView() {
                       : t('camera.arFilters')}
                   </button>
 
+                  {/* 3D Film LUTs Toggle */}
+                  <button
+                    onClick={() => setActiveTray((prev) => (prev === 'lut' ? 'none' : 'lut'))}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '6px 14px',
+                      borderRadius: 99,
+                      background: activeTray === 'lut' || (beauty.lutId && beauty.lutId !== 'none')
+                        ? 'linear-gradient(135deg, #f59e0b, #ef4444)'
+                        : 'rgba(15, 23, 42, 0.65)',
+                      color: 'white',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      border: activeTray === 'lut' || (beauty.lutId && beauty.lutId !== 'none')
+                        ? '1px solid rgba(255,255,255,0.5)'
+                        : '1px solid rgba(255,255,255,0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                      boxShadow: beauty.lutId && beauty.lutId !== 'none' ? '0 0 16px rgba(245, 158, 11, 0.45)' : 'none',
+                    }}
+                  >
+                    <Film size={13} />
+                    {beauty.lutId && beauty.lutId !== 'none'
+                      ? (lutPresets.find((l) => l.id === beauty.lutId)?.badge ?? 'LUT')
+                      : (t('camera.lut') || 'LUT')}
+                  </button>
+
                   {/* Live Color Filters Toggle */}
                   <button
                     onClick={() => setActiveTray((prev) => (prev === 'filters' ? 'none' : 'filters'))}
@@ -1192,6 +1223,182 @@ export function CameraView() {
                               fontWeight: isSelected ? 700 : 500,
                               color: isSelected ? '#818cf8' : 'rgba(255,255,255,0.8)',
                               whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {preset.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 3D LUT COLOR GRADING DRAWER */}
+              {activeTray === 'lut' && camera.state === 'active' && !isCapturing && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 100,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 'calc(100% - 32px)',
+                    maxWidth: 640,
+                    background: 'rgba(15, 23, 42, 0.92)',
+                    backdropFilter: 'blur(24px)',
+                    WebkitBackdropFilter: 'blur(24px)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '16px 20px',
+                    color: 'white',
+                    zIndex: 35,
+                    boxShadow: '0 20px 48px rgba(0,0,0,0.6)',
+                    maxHeight: 340,
+                    overflowY: 'auto',
+                  }}
+                >
+                  <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+                    <div className="flex items-center gap-2">
+                      <Film size={16} color="#f59e0b" />
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>{t('camera.lutPresets')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {beauty.lutId && beauty.lutId !== 'none' && (
+                        <button
+                          onClick={() => {
+                            const url = generateLutStripAsset(beauty.lutId!);
+                            if (url) {
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `lut_${beauty.lutId}.png`;
+                              a.click();
+                              toast(t('camera.lutExportAsset') + ' ✓', 'success');
+                            }
+                          }}
+                          className="btn btn-ghost"
+                          style={{ fontSize: 11, padding: '4px 8px', color: '#fbbf24' }}
+                          title={t('camera.lutExportAsset')}
+                        >
+                          <Download size={12} />
+                          PNG Asset
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setBeauty((prev) => ({
+                            ...prev,
+                            lutId: 'none',
+                            lutIntensity: 100,
+                          }));
+                        }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: 11, padding: '4px 8px', color: 'rgba(255,255,255,0.7)' }}
+                      >
+                        <RotateCcw size={12} />
+                        {t('editor.reset')}
+                      </button>
+                      <button
+                        onClick={() => setActiveTray('none')}
+                        className="btn btn-icon"
+                        style={{ width: 26, height: 26, color: 'rgba(255,255,255,0.7)' }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* LUT Intensity Slider */}
+                  {beauty.lutId && beauty.lutId !== 'none' && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        background: 'rgba(255,255,255,0.06)',
+                        borderRadius: 'var(--radius-md)',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div className="flex justify-between" style={{ fontSize: 12, marginBottom: 4 }}>
+                        <span>🎞️ {t('camera.lutIntensity')}</span>
+                        <span style={{ color: '#f59e0b', fontWeight: 700 }}>{beauty.lutIntensity ?? 100}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        value={beauty.lutIntensity ?? 100}
+                        onChange={(e) => setBeauty((prev) => ({ ...prev, lutIntensity: Number(e.target.value) }))}
+                        style={{ width: '100%', accentColor: '#f59e0b' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* LUT Presets Carousel */}
+                  <div
+                    className="flex items-center gap-3"
+                    style={{
+                      overflowX: 'auto',
+                      paddingBottom: 8,
+                      scrollbarWidth: 'thin',
+                    }}
+                  >
+                    {lutPresets.map((preset) => {
+                      const isSelected = (beauty.lutId ?? 'none') === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          onClick={() => {
+                            setBeauty((prev) => ({
+                              ...prev,
+                              lutId: preset.id,
+                              lutIntensity: prev.lutIntensity ?? 100,
+                            }));
+                          }}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 6,
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            padding: '4px',
+                          }}
+                          title={preset.description}
+                        >
+                          <div
+                            style={{
+                              width: 58,
+                              height: 58,
+                              borderRadius: 16,
+                              background: preset.id === 'none'
+                                ? 'rgba(255,255,255,0.1)'
+                                : `linear-gradient(135deg, ${preset.accentColor}, #0f172a)`,
+                              border: isSelected ? `3px solid ${preset.accentColor}` : '2px solid rgba(255,255,255,0.2)',
+                              boxShadow: isSelected ? `0 0 16px ${preset.accentColor}99` : 'none',
+                              transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                              transition: 'all 0.15s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexDirection: 'column',
+                              color: 'white',
+                              fontWeight: 800,
+                              fontSize: 10,
+                              letterSpacing: '0.05em',
+                            }}
+                          >
+                            <span>{preset.badge}</span>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: isSelected ? 700 : 500,
+                              color: isSelected ? preset.accentColor : 'rgba(255,255,255,0.8)',
+                              whiteSpace: 'nowrap',
+                              maxWidth: 72,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
                             {preset.name}

@@ -61,9 +61,20 @@ async function renderPhoto(
   ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
 
-  // Apply filters
-  if (editState?.filter) {
-    const filtered = applyFiltersToCanvas(canvas, editState.filter, slotPixelW, slotPixelH);
+  // Apply filters & 3D LUT Color Grading
+  if (editState?.filter || (editState?.lutId && editState.lutId !== 'none')) {
+    const filtered = applyFiltersToCanvas(
+      canvas,
+      editState?.filter ?? {
+        brightness: 0, contrast: 0, saturation: 0, exposure: 0,
+        warmth: 0, tint: 0, highlights: 0, shadows: 0,
+        fade: 0, vignette: 0, grain: 0, sharpness: 0,
+      },
+      slotPixelW,
+      slotPixelH,
+      editState?.lutId,
+      editState?.lutIntensity
+    );
     return filtered;
   }
   return canvas;

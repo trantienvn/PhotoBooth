@@ -83,6 +83,14 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'camera.arFlower': 'Hoa anh đào',
     'camera.arAngel': 'Thiên thần',
 
+    // 3D LUT Color Grading
+    'camera.lut': 'Màu phim LUT',
+    'camera.lutPresets': 'Màu phim 3D LUT',
+    'camera.lutIntensity': 'Độ đậm màu LUT',
+    'camera.lutExportAsset': 'Tải mẫu LUT Strip (.png)',
+    'editor.lut': 'Màu phim 3D LUT',
+    'editor.lutIntensity': 'Độ đậm hiệu ứng LUT',
+
     // Capture Controls Sidebar
     'controls.mode': 'Chế độ chụp',
     'controls.photos': 'Số lượng ảnh',
@@ -287,6 +295,14 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'camera.arDog': 'Puppy Dog',
     'camera.arFlower': 'Sakura Flower',
     'camera.arAngel': 'Angel Halo',
+
+    // 3D LUT Color Grading
+    'camera.lut': 'Film LUTs',
+    'camera.lutPresets': 'Cinematic Film LUTs',
+    'camera.lutIntensity': 'LUT Intensity',
+    'camera.lutExportAsset': 'Download LUT Strip (.png)',
+    'editor.lut': '3D Film LUTs',
+    'editor.lutIntensity': 'LUT Intensity',
 
     // Capture Controls Sidebar
     'controls.mode': 'Mode',

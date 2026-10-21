@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Sliders, RotateCcw, FlipHorizontal, ArrowLeft, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Sliders, RotateCcw, FlipHorizontal, ArrowLeft, ArrowRight, Eye, EyeOff, Film, Download, Palette } from 'lucide-react';
 import { useAppContext } from '@/app/AppContext';
-import type { Photo, PhotoEditState, FilterSettings, FilterPresetName } from '@/types';
+import type { Photo, PhotoEditState, FilterSettings, FilterPresetName, LutPresetId } from '@/types';
 import { defaultPhotoEditState, defaultFilterSettings } from '@/types';
 import { filterPresets } from '@/services/image-processing.service';
 import { applyFiltersToCanvas } from '@/services/image-processing.service';
+import { lutPresets, generateLutStripAsset } from '@/services/lut.service';
 
 interface SliderRowProps {
   label: string;
@@ -34,11 +35,12 @@ function SliderRow({ label, value, min, max, onChange }: SliderRowProps) {
 }
 
 export function PhotoEditor() {
-  const { currentSession, editStates, setEditState, setView, t } = useAppContext();
+  const { currentSession, editStates, setEditState, setView, toast, t } = useAppContext();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [applyToAll, setApplyToAll] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<'lut' | 'presets' | 'adjust'>('lut');
 
   const photos = currentSession?.photos ?? [];
 
@@ -81,6 +83,21 @@ export function PhotoEditor() {
       ...prev,
       filter: { ...preset.settings },
       presetId,
+    }));
+  }, [updateEdit]);
+
+  const applyLut = useCallback((lutId: LutPresetId) => {
+    updateEdit((prev) => ({
+      ...prev,
+      lutId,
+      lutIntensity: prev.lutIntensity ?? 100,
+    }));
+  }, [updateEdit]);
+
+  const updateLutIntensity = useCallback((intensity: number) => {
+    updateEdit((prev) => ({
+      ...prev,
+      lutIntensity: intensity,
     }));
   }, [updateEdit]);
 
@@ -192,44 +209,160 @@ export function PhotoEditor() {
           </button>
         </div>
 
-        {/* Filter presets */}
-        <div className="section-header">{t('editor.presets')}</div>
-        <div style={{ padding: '0 12px 12px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          {filterPresets.map((preset) => (
+        {/* Editor Tabs: LUT Phim / Phong cách / Tinh chỉnh */}
+        <div style={{ padding: '0 12px 10px' }}>
+          <div className="tab-bar">
             <button
-              key={preset.id}
-              className={`filter-preset ${currentEdit.presetId === preset.id ? 'active' : ''}`}
-              onClick={() => applyPreset(preset.id)}
-              title={preset.name}
+              className={`tab-item ${activeTab === 'lut' ? 'active' : ''}`}
+              onClick={() => setActiveTab('lut')}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
             >
-              <div className="filter-preset-thumb" style={{
-                background: preset.id === 'bw' ? 'linear-gradient(135deg, #666, #ccc)' :
-                  preset.id === 'warm' ? 'linear-gradient(135deg, #f97316, #fde68a)' :
-                  preset.id === 'cool' ? 'linear-gradient(135deg, #60a5fa, #a5f3fc)' :
-                  preset.id === 'vintage' ? 'linear-gradient(135deg, #a16207, #fef3c7)' :
-                  preset.id === 'pastel' ? 'linear-gradient(135deg, #f9a8d4, #c4b5fd)' :
-                  preset.id === 'korean' ? 'linear-gradient(135deg, #fbcfe8, #fce7f3)' :
-                  'linear-gradient(135deg, #e5e7eb, #f9fafb)',
-              }} />
-              <div className="filter-preset-label">{preset.name}</div>
+              <Film size={13} />
+              <span>{t('editor.lut')}</span>
             </button>
-          ))}
+            <button
+              className={`tab-item ${activeTab === 'presets' ? 'active' : ''}`}
+              onClick={() => setActiveTab('presets')}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+            >
+              <Palette size={13} />
+              <span>{t('editor.presets')}</span>
+            </button>
+            <button
+              className={`tab-item ${activeTab === 'adjust' ? 'active' : ''}`}
+              onClick={() => setActiveTab('adjust')}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+            >
+              <Sliders size={13} />
+              <span>{t('editor.filters')}</span>
+            </button>
+          </div>
         </div>
 
-        {/* Manual adjustments */}
-        <div className="section-header">{t('editor.filters')}</div>
-        <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 16 }}>
-          {(Object.keys(defaultFilterSettings) as (keyof FilterSettings)[]).map((key) => (
-            <SliderRow
-              key={key}
-              label={filterNames[key] || (key.charAt(0).toUpperCase() + key.slice(1))}
-              value={currentEdit.filter[key]}
-              min={key === 'fade' || key === 'vignette' || key === 'grain' || key === 'sharpness' ? 0 : -100}
-              max={100}
-              onChange={(v) => updateFilter(key, v)}
-            />
-          ))}
-        </div>
+        {/* Tab 1: 3D LUT Color Grading */}
+        {activeTab === 'lut' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 12px 16px' }}>
+            {/* LUT Intensity Slider */}
+            {currentEdit.lutId && currentEdit.lutId !== 'none' && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  background: 'var(--surface-card)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                <div className="flex justify-between" style={{ fontSize: 12, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>{t('editor.lutIntensity')}</span>
+                  <span style={{ color: 'var(--brand-primary)', fontWeight: 700 }}>{currentEdit.lutIntensity ?? 100}%</span>
+                </div>
+                <input
+                  type="range"
+                  className="range-input"
+                  min="10"
+                  max="100"
+                  value={currentEdit.lutIntensity ?? 100}
+                  onChange={(e) => updateLutIntensity(Number(e.target.value))}
+                />
+              </div>
+            )}
+
+            {/* LUT Presets Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {lutPresets.map((preset) => {
+                const isSelected = (currentEdit.lutId ?? 'none') === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    className={`filter-preset ${isSelected ? 'active' : ''}`}
+                    onClick={() => applyLut(preset.id)}
+                    title={preset.description}
+                  >
+                    <div
+                      className="filter-preset-thumb"
+                      style={{
+                        background: preset.id === 'none'
+                          ? 'var(--neutral-200)'
+                          : `linear-gradient(135deg, ${preset.accentColor}, #1e293b)`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontWeight: 800,
+                        fontSize: 9,
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      {preset.badge}
+                    </div>
+                    <div className="filter-preset-label">{preset.name}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Export LUT Strip Button */}
+            {currentEdit.lutId && currentEdit.lutId !== 'none' && (
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: 11, marginTop: 4, width: '100%', justifyContent: 'center' }}
+                onClick={() => {
+                  const url = generateLutStripAsset(currentEdit.lutId!);
+                  if (url) {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `lut_${currentEdit.lutId}.png`;
+                    a.click();
+                    toast(t('camera.lutExportAsset') + ' ✓', 'success');
+                  }
+                }}
+              >
+                <Download size={13} /> {t('camera.lutExportAsset')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Standard Filter presets */}
+        {activeTab === 'presets' && (
+          <div style={{ padding: '0 12px 16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+            {filterPresets.map((preset) => (
+              <button
+                key={preset.id}
+                className={`filter-preset ${currentEdit.presetId === preset.id ? 'active' : ''}`}
+                onClick={() => applyPreset(preset.id)}
+                title={preset.name}
+              >
+                <div className="filter-preset-thumb" style={{
+                  background: preset.id === 'bw' ? 'linear-gradient(135deg, #666, #ccc)' :
+                    preset.id === 'warm' ? 'linear-gradient(135deg, #f97316, #fde68a)' :
+                    preset.id === 'cool' ? 'linear-gradient(135deg, #60a5fa, #a5f3fc)' :
+                    preset.id === 'vintage' ? 'linear-gradient(135deg, #a16207, #fef3c7)' :
+                    preset.id === 'pastel' ? 'linear-gradient(135deg, #f9a8d4, #c4b5fd)' :
+                    preset.id === 'korean' ? 'linear-gradient(135deg, #fbcfe8, #fce7f3)' :
+                    'linear-gradient(135deg, #e5e7eb, #f9fafb)',
+                }} />
+                <div className="filter-preset-label">{preset.name}</div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Tab 3: Manual fine-tuning adjustments */}
+        {activeTab === 'adjust' && (
+          <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 16 }}>
+            {(Object.keys(defaultFilterSettings) as (keyof FilterSettings)[]).map((key) => (
+              <SliderRow
+                key={key}
+                label={filterNames[key] || (key.charAt(0).toUpperCase() + key.slice(1))}
+                value={currentEdit.filter[key]}
+                min={key === 'fade' || key === 'vignette' || key === 'grain' || key === 'sharpness' ? 0 : -100}
+                max={100}
+                onChange={(v) => updateFilter(key, v)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main: preview */}
@@ -329,7 +462,14 @@ function FilteredPreview({
       canvas.width = maxW;
       canvas.height = img.naturalHeight * scale;
 
-      const filtered = applyFiltersToCanvas(img, editState.filter, canvas.width, canvas.height);
+      const filtered = applyFiltersToCanvas(
+        img,
+        editState.filter,
+        canvas.width,
+        canvas.height,
+        editState.lutId,
+        editState.lutIntensity
+      );
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.save();
