@@ -2,7 +2,7 @@ import { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import {
   Camera, CameraOff, RefreshCw,
   Grid, FlipHorizontal, ChevronDown, ChevronUp, AlertTriangle, Square,
-  Sparkles, Wand2, Palette, X, RotateCcw, Smile, Film, Download
+  Sparkles, Wand2, Palette, X, RotateCcw, Smile, Film, Download, Sliders
 } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { useCaptureSession } from '@/hooks/useCaptureSession';
