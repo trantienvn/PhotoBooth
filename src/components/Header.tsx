@@ -48,8 +48,8 @@ export function Header() {
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex items-center gap-1" role="navigation" aria-label="Main navigation">
+      {/* Nav (Desktop only, mobile uses bottom bar) */}
+      <nav className="desktop-nav flex items-center gap-1" role="navigation" aria-label="Main navigation">
         {navItems.map((item) => (
           <button
             key={item.id}

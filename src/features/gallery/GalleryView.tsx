@@ -73,10 +73,10 @@ export function GalleryView() {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: 24, width: '100%' }}>
-      <div className="flex items-center justify-between" style={{ marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+    <div className="gallery-container touch-scroll-y" style={{ flex: 1, overflowY: 'auto', width: '100%' }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28 }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'clamp(20px, 5vw, 28px)' }}>
             🖼️ {t('gallery.title')}
           </h1>
           <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 2 }}>
@@ -85,17 +85,17 @@ export function GalleryView() {
         </div>
         <div className="flex items-center gap-2">
           {emptySessions.length > 0 && (
-            <button className="btn btn-secondary" onClick={handleCleanEmptySessions} style={{ color: 'var(--color-danger)' }}>
+            <button className="btn btn-secondary" onClick={handleCleanEmptySessions} style={{ color: 'var(--color-danger)', fontSize: 12 }}>
               <Trash2 size={14} /> {t('gallery.clearEmpty', { count: emptySessions.length })}
             </button>
           )}
-          <button className="btn btn-secondary" onClick={loadSessions}>
-            <RefreshCw size={15} /> {t('gallery.refresh')}
+          <button className="btn btn-secondary" onClick={loadSessions} style={{ fontSize: 12 }}>
+            <RefreshCw size={14} /> {t('gallery.refresh')}
           </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 16 }}>
         {sessions.map((session) => (
           <SessionCard
             key={session.id}

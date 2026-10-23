@@ -12,6 +12,7 @@ interface ThumbnailStripProps {
 export function ThumbnailStrip({ photos, onRetake, onDelete, onReorder }: ThumbnailStripProps) {
   const [dragging, setDragging] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const [activePhotoId, setActivePhotoId] = useState<string | null>(null);
 
   const handleDragStart = (index: number) => {
     setDragging(index);
@@ -31,13 +32,14 @@ export function ThumbnailStrip({ photos, onRetake, onDelete, onReorder }: Thumbn
   };
 
   return (
-    <div className="thumbnail-strip" role="list" aria-label="Captured photos">
+    <div className="thumbnail-strip touch-scroll-x" role="list" aria-label="Captured photos">
       {photos.map((photo, i) => (
         <div
           key={photo.id}
           role="listitem"
-          className={`thumbnail-item ${dragOver === i ? 'selected' : ''}`}
+          className={`thumbnail-item ${dragOver === i || activePhotoId === photo.id ? 'selected' : ''}`}
           draggable
+          onClick={() => setActivePhotoId((prev) => (prev === photo.id ? null : photo.id))}
           onDragStart={() => handleDragStart(i)}
           onDragOver={(e) => handleDragOver(e, i)}
           onDrop={() => handleDrop(i)}
@@ -47,34 +49,34 @@ export function ThumbnailStrip({ photos, onRetake, onDelete, onReorder }: Thumbn
           <img src={photo.editedDataUrl ?? photo.dataUrl} alt={`Photo ${i + 1}`} loading="lazy" />
           <div className="thumbnail-badge">{i + 1}</div>
 
-          {/* Actions on hover */}
+          {/* Actions on hover or tap */}
           <div style={{
             position: 'absolute', inset: 0,
-            background: 'rgba(0,0,0,0.6)',
+            background: 'rgba(0,0,0,0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 4,
-            opacity: 0,
+            gap: 6,
+            opacity: activePhotoId === photo.id ? 1 : 0,
             transition: 'opacity 0.15s',
           }} className="thumbnail-actions">
             <button
               className="btn btn-icon"
-              style={{ background: 'rgba(255,255,255,0.9)', width: 28, height: 28 }}
-              onClick={() => onRetake(photo.id)}
+              style={{ background: 'rgba(255,255,255,0.95)', width: 32, height: 32 }}
+              onClick={(e) => { e.stopPropagation(); onRetake(photo.id); }}
               title="Retake"
               aria-label={`Retake photo ${i + 1}`}
             >
-              <RefreshCw size={12} />
+              <RefreshCw size={14} />
             </button>
             <button
               className="btn btn-icon"
-              style={{ background: 'rgba(239,68,68,0.9)', color: 'white', width: 28, height: 28 }}
-              onClick={() => onDelete(photo.id)}
+              style={{ background: 'rgba(239,68,68,0.95)', color: 'white', width: 32, height: 32 }}
+              onClick={(e) => { e.stopPropagation(); onDelete(photo.id); }}
               title="Delete"
               aria-label={`Delete photo ${i + 1}`}
             >
-              <Trash2 size={12} />
+              <Trash2 size={14} />
             </button>
           </div>
         </div>

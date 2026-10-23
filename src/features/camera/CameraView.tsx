@@ -251,12 +251,31 @@ export function CameraView() {
     updateSettings({ camera: { ...settings.camera, showGrid: newVal } });
   };
 
+  const [showMobileControls, setShowMobileControls] = useState(false);
+
+  const handleFlipCamera = async () => {
+    if (camera.devices.length > 1) {
+      const currentIdx = camera.devices.findIndex((d) => d.deviceId === settings.camera.deviceId);
+      const nextDev = camera.devices[(currentIdx + 1) % camera.devices.length];
+      await camera.switchCamera(nextDev.deviceId);
+      updateSettings({ camera: { ...settings.camera, deviceId: nextDev.deviceId } });
+      toast(nextDev.label || 'Đổi camera', 'info');
+    } else {
+      const nextFacing = settings.camera.facing === 'environment' ? 'user' : 'environment';
+      const nextMirror = nextFacing === 'user';
+      setMirror(nextMirror);
+      updateSettings({ camera: { ...settings.camera, facing: nextFacing, mirror: nextMirror } });
+      await camera.startCamera({ ...settings.camera, facing: nextFacing, mirror: nextMirror });
+      toast(nextFacing === 'user' ? 'Camera trước' : 'Camera sau', 'info');
+    }
+  };
+
   const isCapturing = capture.status === 'countdown' || capture.status === 'capturing';
 
   return (
     <div className="flex h-full w-full" style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
-      {/* Sidebar: capture controls */}
-      <div className="app-sidebar" style={{ width: 'var(--sidebar-w)', minWidth: 'var(--sidebar-w)', flexShrink: 0 }}>
+      {/* Sidebar: capture controls (Desktop only) */}
+      <div className="app-sidebar desktop-only" style={{ width: 'var(--sidebar-w)', minWidth: 'var(--sidebar-w)', flexShrink: 0 }}>
         <CaptureControls
           onCapture={handleCapture}
           onSingleCapture={handleSingleCapture}
@@ -273,15 +292,73 @@ export function CameraView() {
         />
       </div>
 
+      {/* Mobile Capture Controls Modal */}
+      {showMobileControls && (
+        <div
+          className="mobile-only"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(10px)',
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'flex-end',
+          }}
+          onClick={() => setShowMobileControls(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              background: 'var(--surface-card)',
+              borderTopLeftRadius: 'var(--radius-xl)',
+              borderTopRightRadius: 'var(--radius-xl)',
+              padding: '16px',
+              borderTop: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-xl)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>📸 {t('controls.mode')}</div>
+              <button
+                className="btn btn-icon btn-ghost"
+                onClick={() => setShowMobileControls(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <CaptureControls
+              onCapture={(m, c) => { setShowMobileControls(false); handleCapture(m, c); }}
+              onSingleCapture={() => { setShowMobileControls(false); handleSingleCapture(); }}
+              disabled={camera.state !== 'active' || isCapturing}
+              settings={settings}
+              updateSettings={updateSettings}
+              captureStatus={capture.status}
+              capturedCount={capture.session?.capturedCount ?? 0}
+              totalCount={capture.session?.totalCount ?? 0}
+              onCancel={capture.cancelSession}
+              onReset={capture.resetSession}
+              timelapse={timelapse}
+              cameraStream={camera.state === 'active' ? (camera.videoRef.current?.srcObject as MediaStream | null) : null}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Main: camera preview */}
       <div className="app-main" style={{ position: 'relative', flex: 1, width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Top toolbar */}
         <div className="flex items-center justify-between" style={{
-          padding: '12px 24px',
+          padding: '8px 16px',
           borderBottom: '1px solid var(--border-subtle)',
           background: 'var(--surface-elevated)',
           width: '100%',
           flexShrink: 0,
+          gap: 8,
+          flexWrap: 'wrap',
         }}>
           <div className="flex items-center gap-2">
             {/* Camera status */}
@@ -320,15 +397,39 @@ export function CameraView() {
                   gap: 4,
                 }}
               >
-                👥 {faceCount} {settings.language === 'vi' ? 'khuôn mặt' : (faceCount > 1 ? 'faces' : 'face')}
+                👥 {faceCount}
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Camera device selector */}
+          <div className="flex items-center gap-1.5">
+            {/* Flip Camera Button (Always visible on mobile, switches device or facing) */}
+            {camera.state === 'active' && (
+              <button
+                id="flip-camera-btn"
+                className="btn btn-icon btn-secondary"
+                onClick={handleFlipCamera}
+                title="Đổi camera trước/sau (Flip camera)"
+                aria-label="Flip camera"
+              >
+                <RotateCcw size={15} />
+              </button>
+            )}
+
+            {/* Mobile capture settings drawer button */}
+            <button
+              className="btn btn-secondary mobile-only"
+              style={{ fontSize: 12, padding: '4px 8px', gap: 4 }}
+              onClick={() => setShowMobileControls(true)}
+              title={t('camera.settings') || 'Cài đặt'}
+            >
+              <Sliders size={14} />
+              <span>{t('controls.mode') || 'Chế độ'}</span>
+            </button>
+
+            {/* Camera device selector (Desktop) */}
             {camera.devices.length > 1 && (
-              <div style={{ position: 'relative' }}>
+              <div className="desktop-only" style={{ position: 'relative' }}>
                 <button
                   className="btn btn-secondary"
                   style={{ fontSize: 12, padding: '4px 10px' }}
@@ -393,24 +494,26 @@ export function CameraView() {
             {camera.state !== 'active' ? (
               <button
                 id="start-camera"
-                className="btn btn-primary btn-lg"
+                className="btn btn-primary"
+                style={{ padding: '6px 14px', fontSize: 13 }}
                 onClick={handleStartCamera}
                 disabled={camera.state === 'requesting'}
               >
                 {camera.state === 'requesting' ? (
-                  <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> {t('camera.starting')}</>
+                  <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> {t('camera.starting')}</>
                 ) : (
-                  <><Camera size={16} /> {t('camera.startCamera')}</>
+                  <><Camera size={15} /> {t('camera.startCamera')}</>
                 )}
               </button>
             ) : (
               <button
                 id="stop-camera"
-                className="btn btn-secondary btn-lg"
+                className="btn btn-secondary"
+                style={{ padding: '6px 12px', fontSize: 13 }}
                 onClick={handleStopCamera}
               >
-                <CameraOff size={16} />
-                {t('camera.stopCamera')}
+                <CameraOff size={15} />
+                <span className="desktop-only">{t('camera.stopCamera')}</span>
               </button>
             )}
           </div>
@@ -423,7 +526,7 @@ export function CameraView() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 24,
+          padding: '8px 12px',
           overflow: 'hidden',
           width: '100%',
           height: '100%',
@@ -564,14 +667,17 @@ export function CameraView() {
               {/* TOP FLOATING TOOLBAR: AUTO ENHANCE, BEAUTY, FILTERS */}
               {camera.state === 'active' && !isCapturing && (
                 <div
+                  className="camera-top-tray no-scrollbar touch-scroll-x"
                   style={{
                     position: 'absolute',
-                    top: 16,
-                    right: 16,
+                    top: 12,
+                    right: 12,
                     zIndex: 30,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: 6,
+                    maxWidth: 'calc(100% - 24px)',
+                    overflowX: 'auto',
                   }}
                 >
                   {/* 1-Tap Auto Enhance Button */}
@@ -725,6 +831,7 @@ export function CameraView() {
               {/* BEAUTY & RETOUCH DRAWER */}
               {activeTray === 'beauty' && camera.state === 'active' && !isCapturing && (
                 <div
+                  className="camera-drawer-mobile touch-scroll-y"
                   style={{
                     position: 'absolute',
                     bottom: 100,
@@ -953,6 +1060,7 @@ export function CameraView() {
               {/* AR ACCESSORIES & FILTERS DRAWER */}
               {activeTray === 'ar' && camera.state === 'active' && !isCapturing && (
                 <div
+                  className="camera-drawer-mobile touch-scroll-y"
                   style={{
                     position: 'absolute',
                     bottom: 100,
@@ -1126,6 +1234,7 @@ export function CameraView() {
               {/* LIVE FILTERS DRAWER */}
               {activeTray === 'filters' && camera.state === 'active' && !isCapturing && (
                 <div
+                  className="camera-drawer-mobile touch-scroll-y"
                   style={{
                     position: 'absolute',
                     bottom: 100,
@@ -1237,6 +1346,7 @@ export function CameraView() {
               {/* 3D LUT COLOR GRADING DRAWER */}
               {activeTray === 'lut' && camera.state === 'active' && !isCapturing && (
                 <div
+                  className="camera-drawer-mobile touch-scroll-y"
                   style={{
                     position: 'absolute',
                     bottom: 100,
@@ -1415,16 +1525,18 @@ export function CameraView() {
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: 22,
+                    bottom: 16,
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 25,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 16,
-                    padding: '8px 18px',
+                    justifyContent: 'center',
+                    gap: 10,
+                    maxWidth: 'calc(100% - 20px)',
+                    padding: '6px 14px',
                     borderRadius: 99,
-                    background: 'rgba(15, 23, 42, 0.65)',
+                    background: 'rgba(15, 23, 42, 0.70)',
                     backdropFilter: 'blur(16px)',
                     WebkitBackdropFilter: 'blur(16px)',
                     border: '1px solid rgba(255, 255, 255, 0.2)',

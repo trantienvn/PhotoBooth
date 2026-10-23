@@ -1,5 +1,6 @@
 import { AppProvider, useAppContext } from './AppContext';
 import { Header } from '@/components/Header';
+import { MobileNav } from '@/components/MobileNav';
 import { ToastContainer } from '@/components/ToastContainer';
 import { CameraView } from '@/features/camera/CameraView';
 import { GalleryView } from '@/features/gallery/GalleryView';
@@ -11,15 +12,9 @@ function AppContent() {
   const { currentView, toasts } = useAppContext();
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100dvh',
-      overflow: 'hidden',
-      background: 'var(--surface-bg)',
-    }}>
+    <div className="app-root">
       <Header />
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', width: '100%', height: '100%', minHeight: 0 }}>
+      <main className="app-content-body">
         {currentView === 'camera' && <CameraView />}
         {currentView === 'gallery' && (
           <div style={{ flex: 1, overflowY: 'auto', width: '100%', height: '100%' }}>
@@ -33,7 +28,8 @@ function AppContent() {
             <SettingsView />
           </div>
         )}
-      </div>
+      </main>
+      <MobileNav />
       <ToastContainer toasts={toasts} />
     </div>
   );

@@ -162,15 +162,15 @@ export function PhotoEditor() {
   };
 
   return (
-    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
-      {/* Left: Photo list + controls */}
-      <div className="app-sidebar" style={{ width: 280, minWidth: 280, flexShrink: 0 }}>
+    <div className="editor-layout" style={{ flex: 1, width: '100%', height: '100%' }}>
+      {/* Sidebar: Photo list + controls */}
+      <div className="app-sidebar editor-sidebar">
         <div className="section-header">{t('editor.photos')}</div>
-        <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="editor-photo-list touch-scroll-x" style={{ padding: '0 10px 10px', display: 'flex', gap: 6 }}>
           {photos.map((photo, i) => (
             <div
               key={photo.id}
-              className={`thumbnail-item ${selectedId === photo.id ? 'selected' : ''}`}
+              className={`thumbnail-item editor-photo-item ${selectedId === photo.id ? 'selected' : ''}`}
               style={{ width: '100%', height: 70, flexShrink: 0, cursor: 'pointer' }}
               onClick={() => setSelectedId(photo.id)}
             >
@@ -366,19 +366,7 @@ export function PhotoEditor() {
       </div>
 
       {/* Main: preview */}
-      <div className="app-main" style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-        gap: 16,
-        flex: 1,
-        width: '100%',
-        height: '100%',
-        minWidth: 0,
-        overflow: 'hidden',
-      }}>
+      <div className="app-main editor-main">
         {/* Navigation */}
         <div className="flex items-center gap-3">
           <button className="btn btn-icon btn-secondary" onClick={goPrev} disabled={photos.indexOf(selectedPhoto!) <= 0}>
@@ -402,15 +390,17 @@ export function PhotoEditor() {
 
         {/* Preview */}
         {selectedPhoto && (
-          <div style={{
-            position: 'relative',
-            maxWidth: '100%',
-            maxHeight: 'calc(100vh - 220px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: 'auto',
-          }}>
+          <div
+            className="editor-preview-container"
+            style={{
+              position: 'relative',
+              maxWidth: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: 'auto',
+            }}
+          >
             <FilteredPreview
               key={`${selectedPhoto.id}-${previewKey}`}
               photo={selectedPhoto}

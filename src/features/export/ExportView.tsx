@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Download, Video, Trash2, Copy, Move, Type, Smile, Sparkles } from 'lucide-react';
+import { Download, Video, Trash2, Copy, Move, Type, Smile, Sparkles, Share2, Eye, Sliders } from 'lucide-react';
 import { useAppContext } from '@/app/AppContext';
 import { templates, getCompatibleTemplates } from '@/services/templates.service';
 import { renderTemplate, renderTemplateThumbnail } from '@/services/template-renderer.service';
@@ -59,6 +59,36 @@ export function ExportView() {
   const [caption, setCaption] = useState(decoration.caption ?? '');
   const [showDate, setShowDate] = useState(decoration.showDate);
   const [supportsWebP] = useState(isWebPSupported());
+  const [mobileSubView, setMobileSubView] = useState<'customize' | 'preview'>('customize');
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  const handleSharePhotostrip = async () => {
+    if (!previewDataUrl) return;
+    try {
+      const res = await fetch(previewDataUrl);
+      const blob = await res.blob();
+      const ext = exportOptions.format === 'jpeg' ? 'jpg' : exportOptions.format;
+      const file = new File([blob], `lumibooth_${Date.now()}.${ext}`, { type: blob.type });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'LumiBooth Photostrip',
+          text: 'Chụp bởi LumiBooth Photostrip ✨',
+        });
+        toast('Đã chia sẻ thành công! 🎉', 'success');
+      } else {
+        await navigator.share({
+          title: 'LumiBooth Photostrip',
+          url: window.location.href,
+        });
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Share error:', err);
+      }
+    }
+  };
 
   // Interactive Layer Drag & Drop State
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
@@ -313,9 +343,32 @@ export function ExportView() {
   }
 
   return (
-    <div className="flex h-full w-full" style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
-      {/* Left sidebar */}
-      <div className="app-sidebar" style={{ width: 340, minWidth: 340, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+    <div className="export-layout" style={{ flex: 1, width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Mobile Sub-view switcher */}
+      <div className="mobile-only" style={{ padding: '8px 12px', background: 'var(--surface-elevated)', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div className="tab-bar">
+          <button
+            className={`tab-item ${mobileSubView === 'customize' ? 'active' : ''}`}
+            onClick={() => setMobileSubView('customize')}
+            style={{ fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          >
+            <Sliders size={14} />
+            <span>{t('export.customizeTab') || 'Tuỳ chỉnh'}</span>
+          </button>
+          <button
+            className={`tab-item ${mobileSubView === 'preview' ? 'active' : ''}`}
+            onClick={() => setMobileSubView('preview')}
+            style={{ fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          >
+            <Eye size={14} />
+            <span>{t('export.previewTab') || 'Xem trước & Xuất'}</span>
+          </button>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
+        {/* Left sidebar */}
+        <div className={`app-sidebar export-sidebar-panel ${mobileSubView === 'customize' ? '' : 'desktop-only'}`} style={{ width: 340, minWidth: 340, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Tabs */}
         <div style={{ padding: '10px 10px 0' }}>
           <div className="tab-bar">
@@ -775,15 +828,27 @@ export function ExportView() {
             ))}
           </div>
         </div>
+
+        {/* Mobile Switch to Preview Button inside sidebar */}
+        <div className="mobile-only" style={{ padding: '12px', borderTop: '1px solid var(--border-subtle)', background: 'var(--surface-card)' }}>
+          <button
+            className="btn btn-primary w-full"
+            onClick={() => setMobileSubView('preview')}
+            style={{ height: 46, fontSize: 14 }}
+          >
+            <Eye size={16} />
+            {t('export.previewAndExport') || 'Xem trước & Tải ảnh'}
+          </button>
+        </div>
       </div>
 
       {/* Main: preview + draggable overlay + export button */}
-      <div className="app-main" style={{
+      <div className={`app-main export-preview-panel ${mobileSubView === 'preview' ? '' : 'desktop-only'}`} style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
+        padding: '16px 12px',
         gap: 14,
         flex: 1,
         width: '100%',
@@ -924,35 +989,59 @@ export function ExportView() {
         )}
 
         {/* Action buttons row */}
-        <div className="flex items-center gap-3" style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div className="flex items-center gap-2" style={{ flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
           <button
             id="export-photostrip-btn"
             className="btn btn-primary btn-xl"
             onClick={handleExportPhotostrip}
             disabled={isRendering || !selectedTemplate || photos.length === 0}
-            style={{ minWidth: 220 }}
+            style={{ minWidth: 160, flex: '1 1 auto' }}
           >
             {isRendering ? (
-              <><div className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> {t('export.exporting')}</>
+              <><div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> {t('export.exporting')}</>
             ) : (
-              <><Download size={20} /> {t('export.downloadPhotostrip')}</>
+              <><Download size={18} /> {t('export.downloadPhotostrip')}</>
             )}
           </button>
+
+          {canShare && (
+            <button
+              id="share-photostrip-btn"
+              className="btn btn-secondary btn-xl"
+              onClick={handleSharePhotostrip}
+              disabled={isRendering || !previewDataUrl}
+              style={{ gap: 6, flex: '0 0 auto' }}
+              title="Chia sẻ ảnh"
+            >
+              <Share2 size={18} />
+              <span>{t('export.share') || 'Chia sẻ'}</span>
+            </button>
+          )}
 
           {currentSession?.timelapseUrl && (
             <button
               id="export-timelapse-btn"
               className="btn btn-secondary btn-xl"
               onClick={handleDownloadTimelapse}
-              style={{ gap: 8 }}
+              style={{ gap: 6, flex: '0 0 auto' }}
             >
               <Video size={18} />
               {t('export.downloadTimelapse')}
             </button>
           )}
+
+          <button
+            className="btn btn-ghost mobile-only"
+            onClick={() => setMobileSubView('customize')}
+            style={{ width: '100%', fontSize: 13, gap: 6 }}
+          >
+            <Sliders size={14} />
+            <span>{t('export.backToCustomize') || 'Quay lại tuỳ chỉnh khung & nhãn'}</span>
+          </button>
         </div>
       </div>
     </div>
+  </div>
   );
 }
 

@@ -34,8 +34,8 @@ export function SettingsView() {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '24px', maxWidth: 680, margin: '0 auto', width: '100%' }}>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, marginBottom: 32 }}>
+    <div className="settings-container touch-scroll-y" style={{ flex: 1, overflowY: 'auto', maxWidth: 680, margin: '0 auto', width: '100%' }}>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'clamp(20px, 5vw, 28px)', marginBottom: 24 }}>
         ⚙️ {t('settings.title')}
       </h1>
 
